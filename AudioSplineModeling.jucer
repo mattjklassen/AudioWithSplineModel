@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="eSOTO4" name="AudioSplineModeling" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="1" displaySplashScreen="0" jucerFormatVersion="1">
+  <MAINGROUP id="Zdh1ZK" name="AudioSplineModeling">
+    <GROUP id="{C393A6D9-2AB0-1997-B053-A01627D83C2B}" name="Source">
+      <FILE id="dgIs4u" name="Cycle.cpp" compile="1" resource="0" file="Source/Cycle.cpp"/>
+      <FILE id="ShNQ61" name="Cycle.h" compile="0" resource="0" file="Source/Cycle.h"/>
+      <FILE id="nipMzM" name="zeros.cpp" compile="1" resource="0" file="Source/zeros.cpp"/>
+      <FILE id="tUPubS" name="zeros.h" compile="0" resource="0" file="Source/zeros.h"/>
+      <FILE id="blFN5d" name="mat.cpp" compile="1" resource="0" file="Source/mat.cpp"/>
+      <FILE id="vvh35i" name="mat.h" compile="0" resource="0" file="Source/mat.h"/>
+      <FILE id="poEjIi" name="GraphComponent.cpp" compile="1" resource="0"
+            file="Source/GraphComponent.cpp"/>
+      <FILE id="O7bFZJ" name="GraphComponent.h" compile="0" resource="0"
+            file="Source/GraphComponent.h"/>
+      <FILE id="HviKW5" name="CycleSpline.cpp" compile="1" resource="0" file="Source/CycleSpline.cpp"/>
+      <FILE id="jtsTxW" name="CycleSpline.h" compile="0" resource="0" file="Source/CycleSpline.h"/>
+      <FILE id="Gdvl1h" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="sTxpPY" name="MainContentComponent.cpp" compile="1" resource="0"
+            file="Source/MainContentComponent.cpp"/>
+      <FILE id="Ds25BK" name="MainContentComponent.h" compile="0" resource="0"
+            file="Source/MainContentComponent.h"/>
+      <FILE id="iHVFFx" name="bsp.h" compile="0" resource="0" file="Source/bsp.h"/>
+      <FILE id="ddqzNr" name="bsp.cpp" compile="1" resource="0" file="Source/bsp.cpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <JUCEOPTIONS/>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="AudioSplineModeling"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="AudioSplineModeling"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../modules"/>
+        <MODULEPATH id="juce_core" path="../../modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../modules"/>
+        <MODULEPATH id="juce_events" path="../../modules"/>
+        <MODULEPATH id="juce_graphics" path="../../modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+</JUCERPROJECT>
