@@ -1,4 +1,3 @@
-
 /*
   ==============================================================================
 
@@ -42,41 +41,8 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
-using namespace std;
 
-//void fillinputs(int d, int k, float *inputs);
-//void fillknots(int d, int k, float *knots);
-//void deboorfit(int k, int d, float u0, float SPP, float *bcoeffs, float *knots, short *samples3, float *DeBoor);
-//void truncfit(int k, int d, float u0, float SPP, float *trunccoeffs, float *knots, short *samples2 );
-//void getbcoeffs(int k, int d, float *bcoeffs, float *trunccoeffs, float *bmatinv);
-//void getwaveoutputs(int k, int d, float u0, float *inputs, float *outputs, float SPP, short *samples);
-//void gettrunccoeffs(int k, int d, float *trunccoeffs, float *matinv, float *outputs);
-//void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *samples2, short *samples3, float *inputs, float *outputs, float *knots, float *SPP, float *trunccoeffs, float *matinv, float *bcoeffsteps, float *bcoeffs, float *bmatinv, float *DeBoor, short *BSPsamples);
-//unsigned GetWavDataSampleRate(fstream& in);
-//unsigned GetWavData(fstream& in, char *data);
-//unsigned GetWavDataSize(fstream& in);
-//void GetWavHeader(fstream& in, char *header);
-//void fillbmat(int k, int d, float *bmat, float *knots);
-//void fillmat(int k, int d, float *mat, float *inputs, float *knots);
-//void gausselim(int n, float *mat, float *matinv);
-//int  getpivot(int n, int j, float *mat);
-//void getzero(int n, int i, int j, float *mat, float *matinv);
-//void initbmat(int k, int d, float *bmat);
-//void matcopy(int n, float *mat, float *temp);
-//void printmat(int n, float *mat);
-//void printmult(int n, float *mat, float *matinv);
-//void rowmult(int n, int i, float C, float *mat, float *matinv);
-//void rowswap(int n, int m, int r, float *mat, float *matinv);
-//void setidentity(int n, float *mat);
-//float zerocross(int I, short *samples);
-//float interp(float input, short *samples);
-//int FindAllZeros(int Periods, float Freq, char *data, float *allzeros);
-//int FindZerosClosestToPeriods(int Periods, float Freq, float *zeros, float *allzeros, float *SPP, float LastZero);
-//void truncfit2(float u0, float SPP, short *samples2, short *samples3);
-//void initBSPsamples(int k, int d, short *BSPsamples);
-//void writebcoeffs(int j, int k, int d, float *bcoeffs, short *BSPsamples);
-//void getbcoeffsteps(int k, int d, int NumZeros, float *bcoeffsteps, float *bcoeffs);
-//void getlinearbcoeffs(int k, int d, float *bcoeffsteps, float *bcoeffs);
+using namespace std;
 
 struct fileheader
 {
@@ -95,6 +61,7 @@ struct fileheader
 	unsigned data_size; // (40) = # bytes of data
 };
 
+// this function not used in JUCE project, original for command line version
 int old_main(int argc, char *argv[]) 
 {
   // process command line arguments
@@ -109,6 +76,7 @@ int old_main(int argc, char *argv[])
   int k = atoi(argv[2]); // number of subintervals
   int Freq = atoi(argv[3]);  // guess at frequency
   int Periods = atoi(argv[4]);  // number of periods on which to do spline fit
+    int sampleRate = 44100;
     cout << endl << "number of periods is: " << Periods << endl;  
   //  cout << "size of int is: " << sizeof(int) << endl;  
   //  cout << "size of short is: " << sizeof(short) << endl;  
@@ -212,7 +180,8 @@ int old_main(int argc, char *argv[])
   fillknots(d, k, knots);
   
   // fill array allzeros[] with all zeros from data
-  NumAllZeros = FindAllZeros(Periods, Freq, data, allzeros);
+//  NumAllZeros = FindAllZeros(sampleRate, Periods, Freq, data, allzeros);
+    NumAllZeros = 0;  //  this will not be called !!
   // for (i=NumAllZeros-20; i<NumAllZeros+1; i++)
   // {
   //    cout << allzeros[i] << endl;
@@ -221,8 +190,9 @@ int old_main(int argc, char *argv[])
   // cout << "last zero:  " <<  LastZero << endl;
   
   // fill array zeros[] with zeros closest to periods
-  NumZeros = FindZerosClosestToPeriods(Periods, Freq, zeros, allzeros, SPP, LastZero);
-
+//  NumZeros = FindZerosClosestToPeriods(sampleRate, Periods, Freq, zeros, allzeros, SPP, LastZero);
+    NumZeros = 0;  //   THIS IS NOT BEING CALLED !!
+    
   int NumSteps = NumZeros-1-40;
   float *bcoeffsteps = new float[NumSteps];
 
@@ -376,15 +346,16 @@ int old_main(int argc, char *argv[])
 
 // new functions for JUCE version
 
-void computeCycleSplineOutputs(CycleSpline* cycle, float* splineOutputs)
+// compute the outputs of a spline on one cycle using DeBoor algorithm
+void computeCycleSplineOutputs(CycleSpline& cycle, float* splineOutputs)
 {
-    int k = cycle->k, d = cycle->d;
+    int k = cycle.k, d = cycle.d;
     float *DeBoor = new float[(k+d)*(k+d)];
-    float a = cycle->a, b = cycle->b;
-    int i, h, K;  // use K for the usual J index in DeBoor Algorithm
+    float a = cycle.a, b = cycle.b;
+    int i, h, J;  // J index in DeBoor Algorithm
     int N=k+2*d;
     int p;  // stage in DeBoor Algorithm
-    int numSamples = int (cycle->b) - int (cycle->a);
+    int numSamples = int (b) - int (a);
     float denom, fac1, fac2, t, fval;
     int Imin = (int)ceil(a);       // first sample index
     int Imax = Imin + numSamples - 1;  // last sample index
@@ -397,33 +368,33 @@ void computeCycleSplineOutputs(CycleSpline* cycle, float* splineOutputs)
         // set K value
         for (i=1; i<N-d; i++)
         {
-            if (t < cycle->knots[i])
+            if (t < cycle.knots[i])
             {
-              K = i-1;
+              J = i-1;
               break;
             }
         }
         for (i=0; i<d+k; i++)
         {
-            DeBoor[(k+d)*i+0] = cycle->bcoeffs[i];
+            DeBoor[(k+d)*i+0] = cycle.bcoeffs[i];
         }
         for (p=1; p<d+1; p++)
         {
-            for (i=K-d+p; i<K+1; i++)
+            for (i=J-d+p; i<J+1; i++)
             {
-              denom = (cycle->knots[i+d-(p-1)]-cycle->knots[i]);
-              fac1 = (t-cycle->knots[i]) / denom;
-              fac2 = (cycle->knots[i+d-(p-1)]-t) / denom;
+              denom = (cycle.knots[i+d-(p-1)]-cycle.knots[i]);
+              fac1 = (t-cycle.knots[i]) / denom;
+              fac2 = (cycle.knots[i+d-(p-1)]-t) / denom;
               DeBoor[(k+d)*i+p] = fac1 * DeBoor[(k+d)*i+(p-1)]
               + fac2 * DeBoor[(k+d)*(i-1)+(p-1)];
             }
         }
-        fval = DeBoor[(k+d)*K+d];
+        fval = DeBoor[(k+d)*J+d];
         splineOutputs[h] = fval;
     }
 }
 
-void computeCycleBcoeffs(CycleSpline* cycle, short *samples)
+void computeCycleBcoeffs(CycleSpline& cycle, float *samples)
 {
 //    from input cycle we get: k, d, and other data:
 //    int d;  // degree of B-splines, default d = 3
@@ -434,11 +405,12 @@ void computeCycleBcoeffs(CycleSpline* cycle, short *samples)
 //    float *knots;   // default uniform knot sequence includes subinterval endpoints, and d more on each end
 //    float *bcoeffs; // B-spline coefficients, d+k of them
     
-    int k = cycle->k, d = cycle->d;
-    float *outputs = new float[k+d];
+    int k = cycle.k, d = cycle.d;
+    Array<float> outputs;
     for (int i=0; i<k+d+1; i++)
     {
-        outputs[i] = interp(cycle->inputs[i], samples);
+//        outputs[i] = interpFloat(cycle.inputs[i], samples);
+        outputs.add(0);
     }
     float *trunccoeffs = new float[k+d];
     float *bcoeffs = new float[k+d];
@@ -446,19 +418,25 @@ void computeCycleBcoeffs(CycleSpline* cycle, short *samples)
     float *matinv = new float[(k+d)*(k+d)];
     float *bmat = new float[(k+d)*(k+d)];
     float *bmatinv = new float[(k+d)*(k+d)];
-    float *temp = new float[(k+d)*(k+d)];
-    fillmat(k, d, mat, cycle->inputs, cycle->knots);
-    initbmat(k, d, bmat);
-    fillbmat(k, d, bmat, cycle->knots);
-    setidentity(k+d, matinv);
-    setidentity(k+d, bmatinv);
-    matcopy(d+k, mat, temp);
-    gausselim(d+k, temp, matinv);
-    matcopy(d+k, bmat, temp);
-    gausselim(d+k, temp, bmatinv);
-    gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
-    getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
-    cycle->bcoeffs = bcoeffs;
+//    float *temp = new float[(k+d)*(k+d)];
+//    fillmat(k, d, mat, cycle.inputs, cycle.knots);
+//    initbmat(k, d, bmat);
+//    fillbmat(k, d, bmat, cycle.knots);
+//    setidentity(k+d, matinv);
+//    setidentity(k+d, bmatinv);
+//    matcopy(d+k, mat, temp);
+//    gausselim(d+k, temp, matinv);
+//    matcopy(d+k, bmat, temp);
+//    gausselim(d+k, temp, bmatinv);
+//    gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
+//    getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
+//    cycle.bcoeffs = bcoeffs;
+    delete[] trunccoeffs;
+    delete[] mat;
+    delete[] matinv;
+    delete[] bmat;
+    delete[] bmatinv;
+//    delete[] temp;
 }
 
 void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *samples2, short *samples3, float *inputs, float *outputs, float *knots, float *SPP, float *trunccoeffs, float *matinv, float *bcoeffsteps, float *bcoeffs, float *bmatinv, float *DeBoor, short *BSPsamples)

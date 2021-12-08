@@ -1,4 +1,3 @@
-
 /*
   ==============================================================================
 
@@ -10,6 +9,7 @@
 */
 
 #include "CycleSpline.h"
+#include "../JuceLibraryCode/JuceHeader.h"
 
 CycleSpline::CycleSpline(int k, float a, float b)
 {
@@ -18,27 +18,30 @@ CycleSpline::CycleSpline(int k, float a, float b)
     float incr = (b - a) / k;
     int n = k + d;  // dimension of splines, also number of inputs
     int N = k + 2*d;  // last index of knot sequence t_0,...,t_N
-    subintervals = new float[k+1];
-    subintervals[0] = a;
+    
+    subintervals.add(a);
     for (int i=1; i<k+1; i++)
     {
-        subintervals[i] = subintervals[i-1] + incr;
+        subintervals.add(subintervals[i-1] + incr);
     }
-    inputs = new float[n];
-    inputs[0] = a; inputs[1] = a + incr / 2;
-    inputs[n-1] = b; inputs[n-2] = b - incr / 2;
+    // now there are k subintervals inside interval [a,b] with a=subintervals[0], b=subintervals[k]
+    
+    inputs.add(a); inputs.add(a + incr / 2);
     for (int i=2; i<n-2; i++)
     {
-        inputs[i] = inputs[i-1] + incr;
+        inputs.add(inputs[i-1] + incr);
     }
-    knots[0] = a - d * incr;
+    inputs.add(b - incr / 2); inputs.add(b);
+    
+    knots.add(a - d * incr);
     for (int i=1; i<N+1; i++)
     {
-        knots[i] = knots[i-1] + incr;
+        knots.add(knots[i-1] + incr);
     }
+    
     for (int i=0; i<k+d; i++)
     {
-        bcoeffs[i] = 0;
+        bcoeffs.add(0);
     }
 }
 
@@ -46,3 +49,5 @@ CycleSpline:: ~CycleSpline ()
 {
     
 }
+
+

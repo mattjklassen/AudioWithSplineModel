@@ -10,7 +10,9 @@
 
 
 #include "GraphComponent.h"
-#include "Cycle.h"
+#include "CycleSpline.h"
+#include "zeros.h"
+#include "bsp.h"
 
 void GraphComponent::paint (juce::Graphics& g)
 {
@@ -21,7 +23,6 @@ void GraphComponent::paint (juce::Graphics& g)
     
     drawGraphBox(g, w, h);
     
-
     if (updateGraph) {
         graphSignal(g);
     }
@@ -80,20 +81,34 @@ juce::Point<float> GraphComponent::screenToSignalCoords (juce::Point<float> Q)
 void GraphComponent::resized() {}
 
 
-void GraphComponent::setDataForGraph(short * _graphSamples, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount)
+void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned _sampleRate)
 {
-    graphSamples = _graphSamples;
+    floatBuffer = _floatBuffer;
     audioLoaded = _audioLoaded;
     numSamples = _numSamples;
     magnify = _magnify;
     leftEndPoint = _leftEndPoint;
     rightEndPoint = _rightEndPoint;
     sampleCount = _sampleCount;
+    sampleRate = _sampleRate;
 }
 
-void GraphComponent::setZerosForGraph(float * _zeros)
+void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess)
 {
-    zeros = _zeros;
+    cycleZeros = _cycleZeros;
+    allZeros = _allZeros;
+    samplesPerCycle = _samplesPerCycle;
+    freqGuess = _freqGuess;
+    
+//    DBG("zeros are set");
+//    for (int i = 0; i<10; i++) {
+//        DBG("allZeros[" << i << "]:  " << allZeros[i]);
+//    }
+//    for (int i = 0; i<10; i++) {
+//        DBG("cycleZeros[" << i << "]:  " << cycleZeros[i]);
+//    }
+    DBG("number of cycles:  " << cycleZeros.size());
+    DBG("number of zeros:  " << allZeros.size());
 }
 
 
@@ -111,21 +126,21 @@ void GraphComponent::findCyclesToGraph ()
 {
     int i = 0;
     startIndex = 0;
-    while (leftEndPoint > zeros[i]) {
+    while (leftEndPoint > cycleZeros[i]) {
         i++;
     }
     if (i > 0) {
         startIndex = i-1;
     }
-    while (rightEndPoint > zeros[i]) {
+    while (rightEndPoint > cycleZeros[i]) {
         i++;
-        if (i > 300) {
+        if (i > cycleZeros.size()-1) {
             break;
         }
     }
     endIndex = i-1;
     cyclesToGraph = true;
-    std::cout << "cycles to graph:  " << startIndex << " to " << endIndex << std::endl;
+//    std::cout << "cycles to graph:  " << startIndex << " to " << endIndex << std::endl;
 }
 
 // to graph signal: leftEndPoint and rightEndPoint determine the graph window
@@ -145,7 +160,8 @@ void GraphComponent::graphSignal(juce::Graphics& g)
     rightEP.setValue(rightEndPoint);
     int startSample = (int) leftEndPoint;
     float x = 0;
-    float s = (float) graphSamples[startSample] / 32768.0;
+//    float s = samples[startSample];
+    float s = floatBuffer.getSample(0, startSample);
     float y = (1 - s) * h/2;
     graph.startNewSubPath (juce::Point<float> (x, y));
 
@@ -158,7 +174,8 @@ void GraphComponent::graphSignal(juce::Graphics& g)
         }
         x = x + mult * xincr;
         j = startSample + i * mult;
-        s = (float) graphSamples[j] / 32768.0;
+//        s = samples[j];
+        s = floatBuffer.getSample(0, j);
         y = (1 - s) * h/2;
         graph.lineTo (juce::Point<float> (x,y));
         g.setColour (juce::Colours::green);
@@ -210,12 +227,12 @@ void GraphComponent::drawDot(juce::Point<float> (P), juce::Graphics& g)
 void GraphComponent::shadeCycle(int n, juce::Graphics& g)
 {
     float xincr = float(w) / float(numSamples);  // one sample in screen coords
-    float tval1 = zeros[n] - leftEndPoint;
+    float tval1 = cycleZeros[n] - leftEndPoint;
     juce::Point<float> P (1, 1);  // upper left pt of rectangle to shade
     if (tval1 > 0) {
         P.setX(tval1 * xincr);
     }
-    float tval2 = rightEndPoint - zeros[n+1];
+    float tval2 = rightEndPoint - cycleZeros[n+1];
     juce::Point<float> Q (w - 1, h - 1);  // lower right pt of rectangle to shade
     if (tval2 > 0) {
         Q.setX(w + 1 - tval2 * xincr);
@@ -227,14 +244,20 @@ void GraphComponent::shadeCycle(int n, juce::Graphics& g)
     }
     g.fillRect(toShade);
     g.setFont (10.0f);
-    float midpt = (zeros[n] + zeros[n+1])/2 - leftEndPoint;
+    float midpt = (cycleZeros[n] + cycleZeros[n+1])/2 - leftEndPoint;
     float x = midpt * xincr;
     auto cycleNumber = std::to_string(n);
-    juce::Point<float> ptL (x-20, 100);
-    juce::Point<float> ptR (x+20, 120);
+    juce::Point<float> ptL (x-20, 40);
+    juce::Point<float> ptR (x+20, 60);
     juce::Rectangle<float> Rect (ptL, ptR);
     g.setColour(juce::Colours::darkgrey);
     g.drawText (cycleNumber, Rect, juce::Justification::centred, true);
+    auto samplesPC = std::to_string(samplesPerCycle[n]);
+    juce::Point<float> ptL2 (x-20, h-50);
+    juce::Point<float> ptR2 (x+20, h-30);
+    juce::Rectangle<float> Rect2 (ptL2, ptR2);
+    g.setColour(juce::Colours::darkgrey);
+    g.drawText (samplesPC, Rect2, juce::Justification::centred, true);
 }
 
 void GraphComponent::shadeCycles(juce::Graphics& g)
@@ -265,7 +288,7 @@ void GraphComponent::mouseWheelMove (const MouseEvent& event, const MouseWheelDe
         }
         if (rightEndPoint > sampleCount) {
             rightEndPoint = sampleCount;
-            leftEndPoint = rightEndPoint - (float) numSamples;
+//            leftEndPoint = rightEndPoint - (float) numSamples;
         }
         repaint();
     }
@@ -309,7 +332,7 @@ void GraphComponent::scaleInterval()
 int GraphComponent::getCycleNumber(float t)
 {
     int i = 0;
-    while (zeros[i] < t) {
+    while (cycleZeros[i] < t) {
         i++;
     }
     return i-1;
@@ -317,6 +340,9 @@ int GraphComponent::getCycleNumber(float t)
             
 void GraphComponent::mouseDoubleClick (const MouseEvent& event)
 {
+    if (! audioLoaded) {
+        return;
+    }
     juce::Point<int> P = event.getPosition();
 //    DBG ("Double-Clicked at: " << P.toString());
     juce::Point<float> Q (P.getX(),P.getY());
@@ -328,10 +354,21 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
     } else {
         highlightCycle = n;
     }
+    float a = cycleZeros[n];
+    float b = cycleZeros[n+1];
+//    CycleSpline cycle = CycleSpline(20, a, b);
+//    computeCycleBcoeffs(cycle, samples);
     repaint();
 }
 
 void GraphComponent::mouseDown (const MouseEvent& event)
 {
-//    DBG ("Clicked at: " << event.getPosition().toString());
+    DBG ("Clicked at: " << event.getPosition().toString());
+//    juce::Path curve;
+//    curve.startNewSubPath(event.getPosition());
+}
+
+void GraphComponent::mouseDrag (const MouseEvent& event)
+{
+    DBG ("Dragging at: " << event.getPosition().toString());
 }

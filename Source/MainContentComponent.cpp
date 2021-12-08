@@ -1,8 +1,8 @@
 /*
   ==============================================================================
 
-    MainContentComponent.cpp
-    Created: 29 Nov 2021 11:39:48am
+    AudioWithSplineModel.cpp
+    Created: 15 Nov 2021 9:04:57am
     Author:  Matt Klassen
 
   ==============================================================================
@@ -11,7 +11,7 @@
 #include "MainContentComponent.h"
 
 MainContentComponent::MainContentComponent()
-    :  lEP(0.0), rEP(1200.0), signalScrollBar(false), state (Stopped)
+    : signalScrollBar(false), lEP(0.0), rEP(1200.0), state (Stopped)
 {
     setButtonColours();
     
@@ -41,11 +41,23 @@ MainContentComponent::MainContentComponent()
     shadeButton.setButtonText ("Shade Cycles");
     shadeButton.onClick = [this] { shadeButtonClicked(); };
     shadeButton.setColour (juce::TextButton::buttonColourId, buttonColours[4]);
-    
+
     addAndMakeVisible (&signalScrollBar);
     signalScrollBar.setVisible(true);
     signalScrollBar.setRangeLimits(0, 1000, sendNotificationAsync);
     signalScrollBar.addListener(this);
+    
+    addAndMakeVisible (&freqGuessSlider);
+    freqGuessSlider.setRange (20, 2000.0);
+    freqGuessSlider.setTextValueSuffix (" Hz");
+    freqGuessSlider.setNumDecimalPlacesToDisplay(2);
+    freqGuessSlider.addListener (this);
+    freqGuessSlider.setValue (70.0);
+    freqGuessSlider.setSkewFactorFromMidPoint (100);
+    
+    addAndMakeVisible (&freqGuessLabel);
+    freqGuessLabel.setText ("Frequency Guess", juce::dontSendNotification);
+    freqGuessLabel.attachToComponent (&freqGuessSlider, true);
     
     addAndMakeVisible(&graphView);
     
@@ -105,38 +117,59 @@ void MainContentComponent::resized()
     shadeButton.setBounds (360, 10, 100, 20);
     signalScrollBar.setBounds (15, h-35, w-30, 20);
     graphView.setBounds (10, 70, w-20, h-115);
+    auto sliderLeft = 120;
+    freqGuessSlider.setBounds (sliderLeft, 40, 348, 20);
+    freqGuessLabel.setFont(14.0f);
+}
+// getWidth() - sliderLeft - 10
+void MainContentComponent::readAudioData2 (AudioFormatReader *reader) {
+    
+    sampleCount = (int) reader->lengthInSamples;
+    sampleRate = (int) reader->sampleRate;
+    floatBuffer.setSize ((int) reader->numChannels, (int) reader->lengthInSamples);
+    reader->read(&floatBuffer,                     // juce AudioBuffer <float>
+                 0,                               // start sample in buffer
+                 (int) reader->lengthInSamples,   // number of samples in file data
+                 0,                               // start sample to fill in buffer
+                 true,                            // use Left channel (0)
+                 false);                          // use Right channel (1)
 }
 
 void MainContentComponent::readAudioData (File file) {
-    juce::FileInputStream inputStream (file);
-    inputStream.read(buffer, 44);
-    dataSize = *reinterpret_cast<unsigned*>(buffer+40);
-    sampleRate = *reinterpret_cast<unsigned*>(buffer+24);
-    sampleCount = dataSize/2;
-    data = new char[dataSize];
-    inputStream.read(data, dataSize);
-    samples = reinterpret_cast<short*>(data);
-    std::cout << "size of wav file data is:  " << dataSize << std::endl;
-    std::cout << "sample rate from wav file is:  " << sampleRate << std::endl;
-    std::cout << "number of data samples is:  " << sampleCount << std::endl;
-
+//    old version
+//    juce::FileInputStream inputStream (file);
+//    inputStream.read(buffer, 44);
+//    dataSize = *reinterpret_cast<unsigned*>(buffer+40);
+//    sampleRate = *reinterpret_cast<unsigned*>(buffer+24);
+//    sampleCount = dataSize/2;
+//    data = new char[dataSize];
+//    inputStream.read(data, dataSize);
+//    samples = reinterpret_cast<short*>(data);
+//    std::cout << "size of wav file data is:  " << dataSize << std::endl;
+//    std::cout << "sample rate from wav file is:  " << sampleRate << std::endl;
+//    std::cout << "number of data samples is:  " << sampleCount << std::endl;
 }
 
 void MainContentComponent::computeZeros()
 {
-    int freq = 225;
-    int periods = 300;  // = Cycles
-    float *allzeros = new float[10 * periods];
-    float *zeros = new float[2*periods];
-    float *SPP = new float[2*periods];
-    int numAllZeros = FindAllZeros(periods, freq, data, allzeros);
-//        std::cout << "number of (all) zeros:  " << numAllZeros << std::endl;
-    float lastZero = allzeros[numAllZeros];
-//        std::cout << "last zero:  " << lastZero << std::endl;
-    int numZeros = FindZerosClosestToPeriods(periods, freq, zeros, allzeros, SPP, lastZero);
-    for (int i=0; i<numZeros; i++) {
-        cycleZeros.add (zeros[i]);
-    }
+    int freq = (int) freqGuess;     // = guess at frequency in Hz
+    float lengthInSeconds = (float)sampleCount / (float)sampleRate;
+    int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
+    int numAllZeros = FindAllZerosFloat(sampleRate, periods, freq, floatBuffer, allZeros);
+    float lastZero = allZeros[numAllZeros];
+    int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
+}
+
+void MainContentComponent::reComputeZeros()
+{
+    int freq = (int) freqGuess;     // = guess at frequency in Hz
+    float lengthInSeconds = (float)sampleCount / (float)sampleRate;
+    int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
+    int numAllZeros = allZeros.size() - 1;
+    float lastZero = allZeros[numAllZeros];
+    cycleZeros = Array<float>();
+    samplesPerCycle = Array<int>();
+    int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
 }
 
 void MainContentComponent::shadeButtonClicked()
@@ -189,24 +222,29 @@ void MainContentComponent::openButtonClicked()
 //        std::cout << "open button clicked" << std::endl;
     chooser = std::make_unique<juce::FileChooser> ("Select a Wave file to play...",
                                                    juce::File{},
-                                                   "*.wav");                     // [7]
+                                                   "*.wav");
     auto chooserFlags = juce::FileBrowserComponent::openMode
                       | juce::FileBrowserComponent::canSelectFiles;
 
-    chooser->launchAsync (chooserFlags, [this] (const FileChooser& fc)           // [8]
+    chooser->launchAsync (chooserFlags, [this] (const FileChooser& fc)
     {
         auto file = fc.getResult();
 
-        if (file != File{})                                                      // [9]
+        if (file != File{})                                                      
         {
-            auto* reader = formatManager.createReaderFor (file);                 // [10]
-
-            readAudioData (file);
+            reader = formatManager.createReaderFor (file);
+            readAudioData2(reader);
+//            readAudioData(file);
+            for (int i=0; i<100; i++) {
+                DBG("floatBuffer.getSample(0, " << i << "): " << floatBuffer.getSample(0, i));
+            }
             audioDataLoaded = true;
             computeZeros();
-            graphView.setDataForGraph(samples, audioDataLoaded, numSamples, magnify, leftEndPoint, rightEndPoint, sampleCount);
-            graphView.setZerosForGraph(cycleZeros.getRawDataPointer());
+            graphView.setDataForGraph(floatBuffer, audioDataLoaded, numSamples, magnify,
+                                      leftEndPoint, rightEndPoint, sampleCount, sampleRate);
+            graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess);
         
+            // setting up to play back audio file (as in JUCE tutorial PlayingSoundFilesTutorial)
             if (reader != nullptr)
             {
                 auto newSource = std::make_unique<juce::AudioFormatReaderSource> (reader, true);   // [11]
@@ -257,6 +295,20 @@ void MainContentComponent::scrollBarMoved (ScrollBar* scrollBarThatHasMoved ,
         DBG("set hardLeft true");
     }
     graphView.repaint();
+}
+
+void MainContentComponent::sliderValueChanged (juce::Slider* slider)
+{
+    if (! audioDataLoaded) {
+        return;
+    }
+    if (slider == &freqGuessSlider)
+    {
+        freqGuess = freqGuessSlider.getValue();
+        reComputeZeros();
+        graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess);
+        graphView.callShadeCycles = false;
+    }
 }
 
 void MainContentComponent::valueChanged (Value &value)
@@ -324,4 +376,3 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
     }
     transportSource.getNextAudioBlock (bufferToFill);
 }
-

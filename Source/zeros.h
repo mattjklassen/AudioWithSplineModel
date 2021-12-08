@@ -15,10 +15,11 @@
 #include <cmath>
 #include <iomanip>
 #include <vector>
-
-using namespace std;
+#include "../JuceLibraryCode/JuceHeader.h"
 
 float zerocross(int I, short *samples);
+float zerocrossFloat(int I, AudioBuffer<float>& floatBuffer);
 float interp(float input, short *samples);
-int FindAllZeros(int Periods, float Freq, char *data, float *allzeros);
-int FindZerosClosestToPeriods(int Periods, float Freq, float *zeros, float *allzeros, float *SPP, float LastZero);
+float interpFloat(float input, AudioBuffer<float>& floatBuffer);
+int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float>& floatBuffer,  Array<float>& allZeros);
+int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<float>& cycleZeros, Array<float>& allZeros, Array<int>& samplesPerCycle, float LastZero);

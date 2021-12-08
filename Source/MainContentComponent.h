@@ -1,13 +1,48 @@
 /*
   ==============================================================================
 
-    MainContentComponent.h
-    Created: 29 Nov 2021 11:39:48am
-    Author:  Matt Klassen
+   This file is part of the JUCE tutorials.
+   Copyright (c) 2020 - Raw Material Software Limited
+
+   The code included in this file is provided under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
+   To use, copy, modify, and/or distribute this software for any purpose with or
+   without fee is hereby granted provided that the above copyright notice and
+   this permission notice appear in all copies.
+
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES,
+   WHETHER EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR
+   PURPOSE, ARE DISCLAIMED.
 
   ==============================================================================
 */
 
+/*******************************************************************************
+ The block below describes the properties of this PIP. A PIP is a short snippet
+ of code that can be read by the Projucer and used to generate a JUCE project.
+
+ BEGIN_JUCE_PIP_METADATA
+
+ name:             PlayingSoundFilesTutorial
+ version:          1.0.0
+ vendor:           JUCE
+ website:          http://juce.com
+ description:      Plays audio files.
+
+ dependencies:     juce_audio_basics, juce_audio_devices, juce_audio_formats,
+                   juce_audio_processors, juce_audio_utils, juce_core,
+                   juce_data_structures, juce_events, juce_graphics,
+                   juce_gui_basics, juce_gui_extra
+ exporters:        xcode_mac, vs2019, linux_make
+
+ type:             Component
+ mainClass:        MainContentComponent
+
+ useLocalCopy:     1
+
+ END_JUCE_PIP_METADATA
+
+*******************************************************************************/
 
 
 #pragma once
@@ -19,11 +54,14 @@
 #include "bsp.h"
 #include "GraphComponent.h"
 
+
+
 //==============================================================================
 class MainContentComponent   : public juce::AudioAppComponent,
                                public juce::ChangeListener,
                                public juce::ScrollBar::Listener,
-                               public juce::Value::Listener
+                               public juce::Value::Listener,
+                               public juce::Slider::Listener
 {
 public:
     
@@ -64,6 +102,8 @@ private:
 
     void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
     
+    void sliderValueChanged (juce::Slider* slider) override;
+    
     void valueChanged (Value &value) override;
 
     void changeState (TransportState newState);
@@ -77,6 +117,8 @@ private:
     void setButtonColours();
     
     void computeZeros();
+    
+    void reComputeZeros();
     
     void drawScrollBox(juce::Graphics& g);
     
@@ -104,6 +146,8 @@ private:
     void shadeButtonClicked();
    
     void readAudioData (File file);
+
+    void readAudioData2 (AudioFormatReader *reader);
     
     struct fileheader
     {
@@ -131,40 +175,40 @@ private:
     juce::TextButton shadeButton;
     juce::TextButton selectCycleButton;
     juce::ScrollBar signalScrollBar;
+    juce::Slider freqGuessSlider;
+    juce::Label  freqGuessLabel;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
-//! [members]
     juce::AudioFormatManager formatManager;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     juce::AudioTransportSource transportSource;
     TransportState state;
+//    juce::AudioSampleBuffer fileBuffer;
+    juce::AudioBuffer<float> floatBuffer;
+    juce::AudioFormatReader *reader;
     
-    unsigned dataSize,              // size of data in bytes
-             sampleRate,              // sample rate
-             sampleCount;             // number of data samples
+    unsigned dataSize,          // size of data in bytes
+             sampleRate,        // sample rate
+             sampleCount;       // number of data samples
+    float freqGuess = 70;
     char buffer[44];            // for wav file header
-    char *data = 0;             // pointer to array of wav file data in bytes
-    short *samples = 0;         // pointer to array of wav file data in samples
-//    bool updateGraph = false;
-    float w = 0, h = 0;
-    float leftEndPoint = 0;     // left endpoint (in (float)samples) of Interval to graph
-    float rightEndPoint = 2000; // right endpoint (in (float)samples) of Interval to graph
+    float w = 0, h = 0;         // width and height of display for MainContentComponent
+    float leftEndPoint = 0;     // left endpoint in (float)samples of Interval to graph
+    float rightEndPoint = 2000; // right endpoint in (float)samples of Interval to graph
     float addoffset = 0;        // accumulate for left-right Interval shifting
     float magnify = 1;          // to scale the size of Interval
     float magfactor = 1;        // accumulate to give magnification
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
-//    bool callShadeCycles = false;
-//    bool cyclesToGraph = false;
-    Array<float> cycleZeros;    // dynamically resizable array
-    int startIndex = 0;
-    int endIndex = 0;
-//    Array<juce::Colour> cycleColours;
+    // zeros in audio data are computed based on linear interpolation between audio samples
+    Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
+    Array<float> allZeros;      // all zeros in audio sample
+    Array<int> samplesPerCycle;  // number of samples in each cycle of audio sample
+    int startIndex = 0;         // index of first cycle to graph
+    int endIndex = 0;           // index of last cycle to graph
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;
-//    std::unique_ptr<juce::ScrollBar> scrollBar;
-//! [members]
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

@@ -1,3 +1,11 @@
+/*
+  ==============================================================================
+
+    This file contains the startup code for a PIP.
+
+  ==============================================================================
+*/
+
 #include <JuceHeader.h>
 #include "MainContentComponent.h"
 

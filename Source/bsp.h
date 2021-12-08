@@ -53,6 +53,6 @@ void initBSPsamples(int k, int d, short *BSPsamples);
 void writebcoeffs(int j, int k, int d, float *bcoeffs, short *BSPsamples);
 void getbcoeffsteps(int k, int d, int NumZeros, float *bcoeffsteps, float *bcoeffs);
 void getlinearbcoeffs(int k, int d, float *bcoeffsteps, float *bcoeffs);
-void computeCycleBcoeffs(CycleSpline* cycle, short *samples);
-void computeCycleSplineOutputs(CycleSpline* cycle, float* splineOutputs);
+void computeCycleBcoeffs(CycleSpline& cycle, float *samples);
+void computeCycleSplineOutputs(CycleSpline& cycle, float* splineOutputs);
 

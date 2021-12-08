@@ -17,7 +17,9 @@
 #include "Cycle.h"
 #include "bsp.h"
 
+
 class GraphComponent    : public juce::Component
+//                          public juce::Value::Listener
 {
 public:
     GraphComponent()
@@ -26,23 +28,24 @@ public:
         rightEP.setValue(1200);
     }
     
-    void setDataForGraph(short * _graphSamples, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount);
+    void setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned sampleRate);
     
-    void setZerosForGraph( float * _zeros);
+    void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess);
     
-    short* graphSamples;
+    AudioBuffer<float> floatBuffer;
     bool audioLoaded = false;
     bool updateGraph = false;
     bool cyclesToGraph = false;
     bool callShadeCycles = false;
     bool hardLeft = true;
-    float* zeros;
     int numSamples = 1000;
+    float freqGuess = 70;
     float magnify = 1;
     float leftEndPoint;
     float rightEndPoint;
     float w, h;
     unsigned sampleCount;
+    unsigned sampleRate;
     float addoffset = 0;
     float magfactor = 1;
     int startIndex = 0;
@@ -50,10 +53,15 @@ public:
     int highlightCycle = -1;  // positive number is cycle to highlight
     juce::Colour highlightColour;
     Array<juce::Colour> cycleColours;
-//    Array<Cycle> cycles;
+    Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
+    Array<float> allZeros;      // all zeros in audio sample
+    Array<int> samplesPerCycle; 
     Value leftEP;
     Value rightEP;
+    Value dragged;
     juce::Point<int> doubleClick;
+    juce::Path freeCurve;
+    bool drawCurve = false;
     
     juce::Point<float> signalToScreenCoords (juce::Point<float> P);
     juce::Point<float> screenToSignalCoords (juce::Point<float> Q);
@@ -69,6 +77,8 @@ private:
     void drawGraphBox(juce::Graphics& g, float w, float h);
     
     void mouseDown (const MouseEvent& event) override;
+    
+    void mouseDrag (const MouseEvent& event) override;
     
     void mouseDoubleClick (const MouseEvent& event) override;
     
