@@ -83,7 +83,7 @@ int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float
 {
     float Spp = (float)sampleRate / (float)Freq;  // samples per period guess
     int S = (int)Spp;  // generic guess at (int) samples per period
-    DBG("samples per period guess: " << S);
+//    DBG("samples per period guess: " << S);
     int J1 = S*Periods; // max number of samples to scan
   
     // float Guess;  // for next zero close to period

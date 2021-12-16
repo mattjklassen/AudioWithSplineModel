@@ -13,17 +13,28 @@
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
+#include "../JuceLibraryCode/JuceHeader.h"
+
 using namespace std;
 
-void fillbmat(int k, int d, float *bmat, float *knots);
-void fillmat(int k, int d, float *mat, float *inputs, float *knots);
-void gausselim(int n, float *mat, float *matinv);
-int  getpivot(int n, int j, float *mat);
-void getzero(int n, int i, int j, float *mat, float *matinv);
-void initbmat(int k, int d, float *bmat);
-void matcopy(int n, float *mat, float *temp);
-void printmat(int n, float *mat);
-void printmult(int n, float *mat, float *matinv);
-void rowmult(int n, int i, float C, float *mat, float *matinv);
-void rowswap(int n, int m, int r, float *mat, float *matinv);
-void setidentity(int n, float *mat);
+void fillbmat(int k, int d, double *bmat, double *knots);
+void fillmat(int k, int d, double *mat, double *inputs, double *knots);
+void gaussElim(int n, Array<float>& A, Array<float>& B);
+void gausselim(int n, double *mat, double *matinv);
+int  getPivot(int n, int j, Array<float>& A);
+int  getpivot(int n, int j, double *mat);
+void getZero(int n, int i, int j, Array<float>& A, Array<float>& B);
+void getzero(int n, int i, int j, double *mat, double *matinv);
+void initbmat(int k, int d, double *bmat);
+void matcopy(int n, double *mat, double *temp);
+void printmat(int n, double *mat);
+void printMatrix(int n, Array<float>& A);
+void printmult(int n, double *mat, double *matinv);
+void printMult(int n, Array<float>& A, Array<float>& B);
+void rowMult(int n, int i, float C, Array<float>& A, Array<float>& B);
+void rowmult(int n, int i, double C, double *mat, double *matinv);
+void rowSwap(int n, int m, int r, Array<float>& A, Array<float>& B);
+void rowswap(int n, int m, int r, double *mat, double *matinv);
+void setidentity(int n, double *mat);
+Array<float> multMatCol(int n, Array<float>& A, Array<float>& x);
+Array<float> matMult(int n, Array<float>& A, Array<float>& B);

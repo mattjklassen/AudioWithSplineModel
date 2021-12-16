@@ -32,6 +32,12 @@ void GraphComponent::paint (juce::Graphics& g)
     if (callShadeCycles) {
         shadeCycles(g);
     }
+    if (graphSplineCycle) {
+        graphSpline(g, cycleToGraph);
+    }
+    if (plotTargets) {
+        plotTargetPoints(g, cycleToGraph);
+    }
 }
 
 void GraphComponent::drawGraphBox(juce::Graphics& g, float w, float h)
@@ -59,7 +65,7 @@ juce::Point<float> GraphComponent::signalToScreenCoords (juce::Point<float> P)
     // x ranges from 0 to w, y from 0 down to h
     // y = (1 - s) * h/2 or s = 1 - (2/h) * y
     juce::Point<float> Q;
-    float xincr = float(w)/float(numSamples);  // one sample in screen coords
+    float xincr = w / (rightEndPoint - leftEndPoint);  // one sample in screen coords
     float tval = P.getX() - leftEndPoint;
     float sval = P.getY();
     Q.setX(tval * xincr);
@@ -72,7 +78,7 @@ juce::Point<float> GraphComponent::screenToSignalCoords (juce::Point<float> Q)
     juce::Point<float> P;
     float y = Q.getY();
     float x = Q.getX();
-    float xincr = float(w)/float(numSamples);  // one sample in screen coords
+    float xincr = w / (rightEndPoint - leftEndPoint);  // one sample in screen coords
     P.setX(leftEndPoint + x / xincr);          // t
     P.setY(1 - 2/h * y);                       // s
     return P;
@@ -81,7 +87,7 @@ juce::Point<float> GraphComponent::screenToSignalCoords (juce::Point<float> Q)
 void GraphComponent::resized() {}
 
 
-void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned _sampleRate)
+void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned _sampleRate, int _kVal)
 {
     floatBuffer = _floatBuffer;
     audioLoaded = _audioLoaded;
@@ -91,6 +97,12 @@ void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _aud
     rightEndPoint = _rightEndPoint;
     sampleCount = _sampleCount;
     sampleRate = _sampleRate;
+    kVal = _kVal;
+}
+
+void GraphComponent::setkVal(int _kVal)
+{
+    kVal = _kVal;
 }
 
 void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess)
@@ -107,8 +119,8 @@ void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _
 //    for (int i = 0; i<10; i++) {
 //        DBG("cycleZeros[" << i << "]:  " << cycleZeros[i]);
 //    }
-    DBG("number of cycles:  " << cycleZeros.size());
-    DBG("number of zeros:  " << allZeros.size());
+//    DBG("number of cycles:  " << cycleZeros.size());
+//    DBG("number of zeros:  " << allZeros.size());
 }
 
 
@@ -160,13 +172,12 @@ void GraphComponent::graphSignal(juce::Graphics& g)
     rightEP.setValue(rightEndPoint);
     int startSample = (int) leftEndPoint;
     float x = 0;
-//    float s = samples[startSample];
     float s = floatBuffer.getSample(0, startSample);
     float y = (1 - s) * h/2;
     graph.startNewSubPath (juce::Point<float> (x, y));
 
     int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
-    float xincr = w / float(numSamples); // convert 1 sample to screen coords
+    float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
     int j = 1;
     for (int i=1; i < numSamples; i++) {
         if (i * mult > numSamples) {
@@ -186,6 +197,32 @@ void GraphComponent::graphSignal(juce::Graphics& g)
     float myThickness = 1;
     juce::PathStrokeType myType = PathStrokeType(myThickness);
     g.setColour (juce::Colours::darkgrey);
+    g.strokePath (graph, myType);
+}
+
+void GraphComponent::graphSpline (juce::Graphics& g, CycleSpline& cycle)
+{
+    // graph cycle spline from a to b using outputs at each sample
+    juce::Path graph;
+    juce::Point<float> P_a(cycle.a,0);
+    P_a = signalToScreenCoords(P_a);
+    graph.startNewSubPath (P_a);
+    float x, y;
+    int I = (int) cycle.a + 1;
+    int J = (int) cycle.b + 1;
+    for (int i=0; i<J-I; i++) {
+        x = (float) i+I;
+        y = cycle.outputs[i];
+        juce::Point<float> P(x,y);
+        P = signalToScreenCoords(P);
+        graph.lineTo(P);
+    }
+    juce::Point<float> P_b(cycle.b,0);
+    P_b = signalToScreenCoords(P_b);
+    graph.lineTo(P_b);
+    float myThickness = 1;
+    juce::PathStrokeType myType = PathStrokeType(myThickness);
+    g.setColour (juce::Colours::blue);
     g.strokePath (graph, myType);
 }
 
@@ -348,27 +385,49 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
     juce::Point<float> Q (P.getX(),P.getY());
     juce::Point<float> S = screenToSignalCoords(Q);
     int n = getCycleNumber(S.getX());
-    DBG("selected cycle: " << n);
     if (highlightCycle == n) {
         highlightCycle = -1;
+        graphSplineCycle = false;
+        plotTargets = false;
     } else {
         highlightCycle = n;
     }
-    float a = cycleZeros[n];
-    float b = cycleZeros[n+1];
-//    CycleSpline cycle = CycleSpline(20, a, b);
-//    computeCycleBcoeffs(cycle, samples);
+    if (highlightCycle == n) {
+        float a = cycleZeros[n];
+        float b = cycleZeros[n+1];
+        cycleToGraph = CycleSpline(kVal, a, b);
+        DBG("selected cycle: " << n << "  a = " << a << "  b = " << b << " k = " << kVal);
+        computeCycleBcoeffs(cycleToGraph, floatBuffer);
+        computeCycleSplineOutputs(cycleToGraph);
+        cycleToGraph.printData();
+        graphSplineCycle = true;
+    }
+    repaint();
+}
+
+void GraphComponent::plotTargetPoints(juce::Graphics& g, CycleSpline& cycle)
+{
+    juce::Point<float> P;
+    juce::Point<float> Q;
+    g.setColour (juce::Colours::red);
+    int n = cycle.inputs.size();
+    for (int i=0; i<n; i++) {
+        P.setX(cycle.inputs[i]);
+        P.setY(cycle.targets[i]);
+        Q = signalToScreenCoords(P);
+        drawDot(Q, g);
+    }
     repaint();
 }
 
 void GraphComponent::mouseDown (const MouseEvent& event)
 {
-    DBG ("Clicked at: " << event.getPosition().toString());
+//    DBG ("Clicked at: " << event.getPosition().toString());
 //    juce::Path curve;
 //    curve.startNewSubPath(event.getPosition());
 }
 
 void GraphComponent::mouseDrag (const MouseEvent& event)
 {
-    DBG ("Dragging at: " << event.getPosition().toString());
+//    DBG ("Dragging at: " << event.getPosition().toString());
 }

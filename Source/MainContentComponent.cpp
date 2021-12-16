@@ -11,7 +11,7 @@
 #include "MainContentComponent.h"
 
 MainContentComponent::MainContentComponent()
-    : signalScrollBar(false), lEP(0.0), rEP(1200.0), state (Stopped)
+    : lEP(0.0), rEP(1200.0), signalScrollBar(false), state (Stopped)
 {
     setButtonColours();
     
@@ -41,6 +41,16 @@ MainContentComponent::MainContentComponent()
     shadeButton.setButtonText ("Shade Cycles");
     shadeButton.onClick = [this] { shadeButtonClicked(); };
     shadeButton.setColour (juce::TextButton::buttonColourId, buttonColours[4]);
+    
+    addAndMakeVisible (&targetButton);
+    targetButton.setButtonText ("Plot targets");
+    targetButton.onClick = [this] { targetButtonClicked(); };
+    targetButton.setColour (juce::TextButton::buttonColourId, buttonColours[0]);
+    
+    addAndMakeVisible (&playCycleButton);
+    playCycleButton.setButtonText ("Play Cycle");
+    playCycleButton.onClick = [this] { playCycleButtonClicked(); };
+    playCycleButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
 
     addAndMakeVisible (&signalScrollBar);
     signalScrollBar.setVisible(true);
@@ -52,12 +62,41 @@ MainContentComponent::MainContentComponent()
     freqGuessSlider.setTextValueSuffix (" Hz");
     freqGuessSlider.setNumDecimalPlacesToDisplay(2);
     freqGuessSlider.addListener (this);
-    freqGuessSlider.setValue (70.0);
+    freqGuessSlider.setValue (220.0);
     freqGuessSlider.setSkewFactorFromMidPoint (100);
     
     addAndMakeVisible (&freqGuessLabel);
     freqGuessLabel.setText ("Frequency Guess", juce::dontSendNotification);
     freqGuessLabel.attachToComponent (&freqGuessSlider, true);
+    
+    addAndMakeVisible (&frequencySlider);
+    frequencySlider.setRange (20, 2000.0);
+    frequencySlider.setTextValueSuffix (" Hz");
+    frequencySlider.setNumDecimalPlacesToDisplay(2);
+    frequencySlider.addListener (this);
+    frequencySlider.setValue (currentFrequency, juce::dontSendNotification);
+    frequencySlider.setSkewFactorFromMidPoint (220);
+    
+    addAndMakeVisible (&frequencyLabel);
+    frequencyLabel.setText ("Cycle Frequency", juce::dontSendNotification);
+    frequencyLabel.attachToComponent (&frequencySlider, true);
+    frequencySlider.onValueChange = [this]
+    {
+        if (currentSampleRate > 0.0)
+            updateAngleDelta();
+    };
+    
+    addAndMakeVisible (&kValSlider);
+    kValSlider.setRange (5, 100);
+    kValSlider.setNumDecimalPlacesToDisplay(0);
+    kValSlider.addListener (this);
+    kValSlider.setValue (20);
+    kValSlider.setSkewFactorFromMidPoint (40);
+    kValSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 40, kValSlider.getTextBoxHeight());
+    
+    addAndMakeVisible (&kValLabel);
+    kValLabel.setText ("k = # subintervals", juce::dontSendNotification);
+    kValLabel.attachToComponent (&kValSlider, true);
     
     addAndMakeVisible(&graphView);
     
@@ -115,11 +154,20 @@ void MainContentComponent::resized()
     stopButton.setBounds (170, 10, 70, 20);
     graphButton.setBounds (250, 10, 100, 20);
     shadeButton.setBounds (360, 10, 100, 20);
+    targetButton.setBounds (470, 10, 100, 20);
+    playCycleButton.setBounds (580, 10, 100, 20);
     signalScrollBar.setBounds (15, h-35, w-30, 20);
     graphView.setBounds (10, 70, w-20, h-115);
-    auto sliderLeft = 120;
-    freqGuessSlider.setBounds (sliderLeft, 40, 348, 20);
+    auto freqGuessSliderLeft = 120;
+    freqGuessSlider.setBounds (freqGuessSliderLeft, 40, 250, 20);
     freqGuessLabel.setFont(14.0f);
+    auto frequencySliderLeft = 490;
+    frequencySlider.setBounds (frequencySliderLeft, 40, 250, 20);
+    frequencyLabel.setFont(14.0f);
+    auto kValSliderLeft = 870;
+    kValSlider.setBounds (kValSliderLeft, 40, 200, 20);
+    kValLabel.setFont(14.0f);
+
 }
 // getWidth() - sliderLeft - 10
 void MainContentComponent::readAudioData2 (AudioFormatReader *reader) {
@@ -188,6 +236,19 @@ void MainContentComponent::shadeButtonClicked()
     graphView.repaint();
 }
 
+void MainContentComponent::targetButtonClicked()
+{
+    int n = graphView.highlightCycle;
+    if (n > -1) {
+        if (graphView.plotTargets) {
+            graphView.plotTargets = false;
+        } else {
+            graphView.plotTargets = true;
+        }
+    }
+    graphView.repaint();
+}
+
 void MainContentComponent::graphButtonClicked()
 {
     if (graphView.audioLoaded) {
@@ -234,14 +295,11 @@ void MainContentComponent::openButtonClicked()
         {
             reader = formatManager.createReaderFor (file);
             readAudioData2(reader);
-//            readAudioData(file);
-            for (int i=0; i<100; i++) {
-                DBG("floatBuffer.getSample(0, " << i << "): " << floatBuffer.getSample(0, i));
-            }
             audioDataLoaded = true;
+            initSplineArrays();
             computeZeros();
             graphView.setDataForGraph(floatBuffer, audioDataLoaded, numSamples, magnify,
-                                      leftEndPoint, rightEndPoint, sampleCount, sampleRate);
+                                      leftEndPoint, rightEndPoint, sampleCount, sampleRate, kVal);
             graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess);
         
             // setting up to play back audio file (as in JUCE tutorial PlayingSoundFilesTutorial)
@@ -309,6 +367,12 @@ void MainContentComponent::sliderValueChanged (juce::Slider* slider)
         graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess);
         graphView.callShadeCycles = false;
     }
+    if (slider == &kValSlider)
+    {
+        kVal = kValSlider.getValue();
+        graphView.setkVal(kVal);
+        graphView.repaint();
+    }
 }
 
 void MainContentComponent::valueChanged (Value &value)
@@ -367,12 +431,140 @@ void MainContentComponent::changeState (TransportState newState)
     }
 }
 
+void MainContentComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRate)
+{
+    if (playCycleOn) {
+        currentSampleRate = sampleRate;
+        updateAngleDelta();
+    } else {
+        transportSource.prepareToPlay (samplesPerBlockExpected, sampleRate);
+    }
+}
+
+void MainContentComponent::updateAngleDelta()
+{
+    auto cyclesPerSample = frequencySlider.getValue() / currentSampleRate;
+    // cycles/sample = fractions of sampling frequency
+    angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi; 
+    // angelDelta = frequency in radians/sample
+}
+
 void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
 {
-    if (readerSource.get() == nullptr)
-    {
-        bufferToFill.clearActiveBufferRegion();
-        return;
+    if (playCycleOn) {
+        auto* leftBuffer  = bufferToFill.buffer->getWritePointer (0, bufferToFill.startSample);
+        auto* rightBuffer = bufferToFill.buffer->getWritePointer (1, bufferToFill.startSample);
+        auto Pi = juce::MathConstants<double>::pi;
+        auto localTargetFrequency = targetFrequency;
+        auto frequencyIncrement = (localTargetFrequency - currentFrequency) / bufferToFill.numSamples;
+        for (auto sample = 0; sample < bufferToFill.numSamples; ++sample)
+        {
+            // compute currentSample value with spline of selected cycle:
+            if (currentAngle > 2.0 * Pi) {
+                currentAngle -= 2.0 * Pi;
+            }
+            float currentSample = computeSpline(currentAngle / (2 * Pi));
+            currentFrequency += frequencyIncrement;
+            currentAngle += angleDelta;
+            leftBuffer[sample]  = currentSample;
+            rightBuffer[sample] = currentSample;
+        }
+    } else {
+        if (readerSource.get() == nullptr)
+        {
+            bufferToFill.clearActiveBufferRegion();
+            return;
+        }
+        transportSource.getNextAudioBlock (bufferToFill);
     }
-    transportSource.getNextAudioBlock (bufferToFill);
+}
+
+void MainContentComponent::playCycleButtonClicked()
+{
+    setSplineArrays();
+    // toggle playing of selected cycle on/off
+    if (playCycleOn) {
+        playCycleOn = false;
+    } else {
+        playCycleOn = true;
+    }
+    prepareToPlay(512, sampleRate);
+}
+
+void MainContentComponent::setSplineArrays()
+{
+    int d = 3;
+    int k = graphView.cycleToGraph.k;
+    int n = k + d;  // dimension of splines, also number of inputs
+    int N = n + d;  // last index of knot sequence t_0,...,t_N
+//    controlCoeffs.clear();
+//    knotVals.clear();
+    for (int i=0; i<n*n; i++) {
+        controlCoeffs.set(i, 0);
+    }
+    float incr = 1 / (float) k;
+    for (int i=0; i<N+1; i++) {
+        knotVals.set(i, (i-d) * incr);
+//        DBG("knot vals [" << i << "] = " << knotVals[i]);
+    }
+    for (int i=0; i<n; i++) {
+        controlCoeffs.set(n*i, graphView.cycleToGraph.bcoeffs[i]);
+//        DBG("control coeffs [" << n*i << "] = " << controlCoeffs[n*i]);
+    }
+}
+
+float MainContentComponent::computeSpline(float t)
+{
+    // assume t is in [0,1] and output is 0 at the ends
+    int d = 3;
+//    int k = graphView.cycleToGraph.k;
+    int k = kVal;
+    float output = 0;
+    int J = 0;
+    int n = k + d;  // dimension of splines, also number of inputs
+    int N = n + d;  // last index of knot sequence t_0,...,t_N
+//    juce::Array<float> controlCoeffs;
+//    for (int i=0; i<n*n; i++) {
+//        controlCoeffs.add(0);
+//    }
+//    for (int i=0; i<d+k; i++) {
+//        controlCoeffs.set((k+d)*i+0, graphView.cycleToGraph.bcoeffs[i]);
+//    }
+//    float incr = 1 / (float) k;
+//    juce::Array<float> knotVals;
+//    for (int i=0; i<N+1; i++) {
+//        knotVals.add((i-d) * incr);
+//    }
+    if ((t > 0) && (t < 1)) {
+        for (int i=1; i<N; i++)
+        {
+            if (t < knotVals[i])
+            {
+              J = i-1;
+                if (J > n-1) {
+                    J = n-1;
+                }
+              break;
+            }
+        }
+
+        for (int p=1; p<d+1; p++)
+        {
+            for (int i=J-d+p; i<J+1; i++)
+            {
+              float denom = (knotVals[i+d-(p-1)]-knotVals[i]);
+              float fac1 = (t-knotVals[i]) / denom;
+              float fac2 = (knotVals[i+d-(p-1)]-t) / denom;
+              controlCoeffs.set((k+d)*i+p, fac1 * controlCoeffs[(k+d)*i+(p-1)]
+                  + fac2 * controlCoeffs[(k+d)*(i-1)+(p-1)]);
+            }
+        }
+        output = controlCoeffs[(k+d)*J+d];
+    }
+    return output;
+}
+
+void MainContentComponent::initSplineArrays() {
+    
+    
 }

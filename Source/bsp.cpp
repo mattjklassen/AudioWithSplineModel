@@ -65,381 +65,581 @@ struct fileheader
 int old_main(int argc, char *argv[]) 
 {
   // process command line arguments
-
-  if (argc != 6)
-    return 0;
-  fstream in(argv[5],ios_base::binary|ios_base::in);
-  if (!in)
-    return 0;
-
-  int d = atoi(argv[1]); // degree of splines
-  int k = atoi(argv[2]); // number of subintervals
-  int Freq = atoi(argv[3]);  // guess at frequency
-  int Periods = atoi(argv[4]);  // number of periods on which to do spline fit
-    int sampleRate = 44100;
-    cout << endl << "number of periods is: " << Periods << endl;  
-  //  cout << "size of int is: " << sizeof(int) << endl;  
-  //  cout << "size of short is: " << sizeof(short) << endl;  
-  //  cout << "size of unsigned is: " << sizeof(unsigned) << endl;  
-  //  cout << "size of float is: " << sizeof(float) << endl;
-  //  cout << "size of float is: " << sizeof(float) << endl;  
-
-  // Globals
-  // int i=0; 
-  int N=k+2*d;  // N is last index of knot sequence
-  int NumAllZeros=0, NumZeros=0;
-  float LastZero=0.0f;
-  
-  // set up arrays
-  float *allzeros = new float[10*Periods];
-  // this allows for about 10 zeros per period on average
-  float *zeros = new float[2*Periods];
-  float *SPP = new float[2*Periods];
-  // input values for interpolation
-  float *inputs = new float[k+d];
-  // output values for interpolation
-  float *outputs = new float[k+d];
-  // knot values for spline functions
-  float *knots = new float[N+1];
-  // arrays for the B-spline coefficients, k per period
-  // as char
-  char *BSPcoeffs = new char[(k+d)*2*441];
-  // and also same array as shorts, there are (k+d)*P BSPsamples
-  // BSPsamples could be used to write B-spline coeffcients to a wav file,
-  // as a type of compression of audio data
-  short *BSPsamples = reinterpret_cast<short*>(BSPcoeffs);
-
-  // cout << "degree d is: " << d << endl;  
-  // cout << "number of subintervals k is: " << k << endl;  
-  // cout << "dimension of splines is: " << k+d << endl;  
-
-  // Get wave file data and set up arrays for data
-  char header[44];
-  in.read(header,44);
-
-  fileheader* h = 0;   // buffer for header
-  h = (fileheader*)header;
-
-  unsigned size = *reinterpret_cast<unsigned*>(header+40),
-  // size is number of bytes of data
-           rate = *reinterpret_cast<unsigned*>(header+24),
-           count = size/2;
-  // int n = (int)count;
-  // count is number of shorts of data (samples)
-  // unsigned size = GetWavDataSize(in);
-  // unsigned rate = GetWavDataSampleRate(in);
-  // GetWavData(in, data);
-  cout << "sample rate from wav file is:  " << rate << endl;
-
-  // input data
-  char *data  = new char[size];
-  in.read(data,size);
-  // output data
-  char *data2 = new char[size];
-  char *data3 = new char[size];
-
-  // short is 2 bytes, 16 bit data
-  short *samples = reinterpret_cast<short*>(data);
-  short *samples2 = reinterpret_cast<short*>(data2);  // to build truncated power output
-  short *samples3 = reinterpret_cast<short*>(data3);  // to build bspline output
-
-  cout << "The data size n is:  " << count << " samples " << endl;
-
-  // coefficients for spline function 
-  float *trunccoeffs = new float[k+d];
-  float *bcoeffs = new float[k+d];
-  float *DeBoor = new float[(k+d)*(k+d)];
-
-  // coefficients for spline function 
-  // float *bspcoeffs = new float[k+d];
-
-  // matrix coefficients for linear system to solve for
-  // shifted power function
-  float *mat = new float[(k+d)*(k+d)];
-  // matrix coefficients for inverse
-  float *matinv = new float[(k+d)*(k+d)];
-
-  // matrix for change of basis from B-spline basis
-  // to truncated power function basis
-  float *bmat = new float[(k+d)*(k+d)];
-  // inverse matrix for change of basis from truncated 
-  // power function basis to B-spline basis
-  float *bmatinv = new float[(k+d)*(k+d)];
-  float *temp = new float[(k+d)*(k+d)];
-
-  ////////////////////////////////////////////////////////////////////
-  // the rest of main is now calling functions to do the interpolation
-
-  // initialize BSPsamples to 0
-  initBSPsamples(k, d, BSPsamples);
-
-  // set up interpolation input values in [0,1]
-  fillinputs(d, k, inputs);
-
-  // set up knot values extending [0,1]
-  fillknots(d, k, knots);
-  
-  // fill array allzeros[] with all zeros from data
-//  NumAllZeros = FindAllZeros(sampleRate, Periods, Freq, data, allzeros);
-    NumAllZeros = 0;  //  this will not be called !!
-  // for (i=NumAllZeros-20; i<NumAllZeros+1; i++)
-  // {
-  //    cout << allzeros[i] << endl;
-  // }
-  LastZero = allzeros[NumAllZeros];
-  // cout << "last zero:  " <<  LastZero << endl;
-  
-  // fill array zeros[] with zeros closest to periods
-//  NumZeros = FindZerosClosestToPeriods(sampleRate, Periods, Freq, zeros, allzeros, SPP, LastZero);
-    NumZeros = 0;  //   THIS IS NOT BEING CALLED !!
-    
-  int NumSteps = NumZeros-1-40;
-  float *bcoeffsteps = new float[NumSteps];
-
-  // Truncated power function basis: 
-  // (t-knots[0])^d_+,...,(t-knots[N-d-1])^d_+,
-  // Interpolating function:
-  // f(t) = a0*(t-knots[0])^d_+ +...+ a(N-d-1)*(t-knots[N-d-1])^d_+
-  
-  // linear system to solve for function f(t)
-  // one row for each input value inputs[0],...,inputs[k+d-1]
-  
-  // matrix is k+d by k+d, say with entries aij
-  // set matrix entries to solve for trunccoeffs
-  
-  fillmat(k, d, mat, inputs, knots);
-  
-  // matrix bmat describes B-splines as column vectors or coordinate
-  // vectors with respect to the truncated power function basis.
-  // Each coordinate vector comes from a quotient of Vandermonde
-  // determinants which interprets the divided difference formulation
-  // of B-splines through Cramer's Rule.
-  
-  // initialize bmat with zeros:
-  initbmat(k, d, bmat);
-  
-  fillbmat(k, d, bmat, knots);
-  
-  // set entries for inverse matrix of mat and bmat (as identity)
-  
-  setidentity(k+d, matinv);
-  setidentity(k+d, bmatinv);
-  
-  // To compute spline coefficients, need inverse matrix.
-  // Solve matrix system Ax=b with A=mat[] and b=outputs[].
-  // Since we will use this same matrix equation with different
-  // values for b on each cycle, we should find the inverse
-  // of A and solve for x on each cycle as x=A^{-1}b.
-  // After computing the truncated power function coefficients
-  // we can use the polar forms, or use the change of basis
-  // matrix coming from Cramer's rule applied to the B-splines,
-  // to compute the B-spline coefficients.
-  
-  // example: knot sequence 0,1,2,3,4,5,6,7,8,  degree d=2,
-  // shifted power basis: (t-0)^2_+,...,(t-5)^2_+, dim = 6.
-  // basic interval [2,6], inputs: 2,2.5,3,4,5,6.
-  // Note: Schoenberg-Whitney Theorem guarantees a unique solution.
-  // matrix:
-  // inputs, coeffs
-  // 2:      (2-0)^2   (2-1)^2     0        0       0      0
-  // 2.5:    (2.5-0)^2 (2.5-1)^2 (2.5-2)^2  0       0      0
-  // 3:      (3-0)^2   (3-1)^2   (3-2)^2    0       0      0
-  // 4:      (4-0)^2   (4-1)^2   (4-2)^2  (4-3)^2   0      0
-  // 5:      (5-0)^2   (5-1)^2   (5-2)^2  (5-3)^2 (5-4)^2  0 
-  // 6:      (6-0)^2   (6-1)^2   (6-2)^2  (6-3)^2 (6-4)^2 (6-5)^2
-  // 
-  // This matrix would only require two row operations to reach
-  // lower triangular form.  This would be more efficient than
-  // finding the inverse.  It could also be used with back 
-  // substitution to solve for the coefficients in each cycle.
-  // If we do find the inverse, then it could be computed most
-  // efficiently by working from bottom right up to top left.
-  // Or maybe it just doesn't matter much.
-  
-  // basic row operations:  swap, multiply, getzero
-  // swap swaps two rows
-  // multiply multiplies one row by a nonzero constant
-  // getzero gets a zero in a row and column using a pivot
-  
-  // find matinv[] = inverse of mat[] using gausselim
-  
-  matcopy(d+k, mat, temp);
-  gausselim(d+k, temp, matinv);
-  
-  // find bmatinv[] = inverse of bmat[] using gausselim
-  
-  matcopy(d+k, bmat, temp);
-  gausselim(d+k, temp, bmatinv);
-  
-  // printmat(d+k, mat);
-  // printmat(d+k, matinv);
-  // printmat(d+k, bmat);
-  // printmat(d+k, bmatinv);
-  
-  // Test matrix inverse with multiplication mat*matinv
-  // cout << "Product matrix mat*matinv:" << endl << endl;
-  // printmult(k+d, mat, matinv);
-  
-  // Test matrix inverse with multiplication bmat*bmatinv
-  // cout << "Product matrix bmat*bmatinv:" << endl << endl;
-  // printmult(k+d, bmat, bmatinv);
-  
-  // Now loop through all Periods and do bspline fit
-  
-  bsplinefit(k, d, count, NumZeros, samples, samples2, samples3, inputs, outputs, knots, SPP, trunccoeffs, matinv, bcoeffsteps, bcoeffs, bmatinv, DeBoor, BSPsamples);
-  
-  // Using A450.wav, a guitar note played at approx 450 Hz
-  // but Audacity plot spectrum says it's about 452 Hz
-  // which is about 46 cents over 440.  The number of samples
-  // per period at 452 Hz would be 97.56, so we are rounding up
-  // to 98 samples per period, which has the nice division 
-  // property:  44100/98 = 450.  So we'll just call it 450 Hz.
-  // Note: 44100 = 2^2*3^2*5^2*7^2.
-
-  // write to wave files
-
-  // for (i=0; i<44; i++)
-  // {
-  //     cout << i << "  " << header[i] << endl;
-  // }
-
-  fstream out("tspline.wav",ios_base::binary|ios_base::out);
-  out.write(header,44);
-  out.write(data2,size);
-
-  fstream out1("DeBoor.wav",ios_base::binary|ios_base::out);
-  out1.write(header,44);
-  out1.write(data3,size);
-
-      
-  size = (unsigned) (k+d)*2*441;
-  h->data_size = size;
-  fstream out2("bcoeffs.wav",ios_base::binary|ios_base::out);
-  out2.write(header,44);
-  out2.write(BSPcoeffs,(k+d)*2*441);
-
-  // free
-
-  delete[] data;
-  delete[] data2;
-  delete[] data3;
-  delete[] mat;
-  delete[] matinv;
-  delete[] bmat;
-  delete[] bmatinv;
-  delete[] inputs;
-  delete[] outputs;
-  delete[] knots;
-  delete[] bcoeffs;
-  delete[] trunccoeffs;
-  delete[] DeBoor;
-  delete[] allzeros;
-  delete[] zeros;
-  delete[] SPP;
-  delete[] temp;
-  delete[] BSPcoeffs;
-  // delete[] header;
-
+//
+//  if (argc != 6)
+//    return 0;
+//  fstream in(argv[5],ios_base::binary|ios_base::in);
+//  if (!in)
+//    return 0;
+//
+//  int d = atoi(argv[1]); // degree of splines
+//  int k = atoi(argv[2]); // number of subintervals
+//  int Freq = atoi(argv[3]);  // guess at frequency
+//  int Periods = atoi(argv[4]);  // number of periods on which to do spline fit
+//    int sampleRate = 44100;
+//    cout << endl << "number of periods is: " << Periods << endl;
+//  //  cout << "size of int is: " << sizeof(int) << endl;
+//  //  cout << "size of short is: " << sizeof(short) << endl;
+//  //  cout << "size of unsigned is: " << sizeof(unsigned) << endl;
+//  //  cout << "size of float is: " << sizeof(float) << endl;
+//  //  cout << "size of float is: " << sizeof(float) << endl;
+//
+//  // Globals
+//  // int i=0;
+//  int N=k+2*d;  // N is last index of knot sequence
+//  int NumAllZeros=0, NumZeros=0;
+//  double LastZero=0.0f;
+//
+//  // set up arrays
+//  double *allzeros = new double[10*Periods];
+//  // this allows for about 10 zeros per period on average
+//  double *zeros = new double[2*Periods];
+//  double *SPP = new double[2*Periods];
+//  // input values for interpolation
+//  double *inputs = new double[k+d];
+//  // output values for interpolation
+//  double *outputs = new double[k+d];
+//  // knot values for spline functions
+//  double *knots = new double[N+1];
+//  // arrays for the B-spline coefficients, k per period
+//  // as char
+//  char *BSPcoeffs = new char[(k+d)*2*441];
+//  // and also same array as shorts, there are (k+d)*P BSPsamples
+//  // BSPsamples could be used to write B-spline coeffcients to a wav file,
+//  // as a type of compression of audio data
+//  short *BSPsamples = reinterpret_cast<short*>(BSPcoeffs);
+//
+//  // cout << "degree d is: " << d << endl;
+//  // cout << "number of subintervals k is: " << k << endl;
+//  // cout << "dimension of splines is: " << k+d << endl;
+//
+//  // Get wave file data and set up arrays for data
+//  char header[44];
+//  in.read(header,44);
+//
+//  fileheader* h = 0;   // buffer for header
+//  h = (fileheader*)header;
+//
+//  unsigned size = *reinterpret_cast<unsigned*>(header+40),
+//  // size is number of bytes of data
+//           rate = *reinterpret_cast<unsigned*>(header+24),
+//           count = size/2;
+//  // int n = (int)count;
+//  // count is number of shorts of data (samples)
+//  // unsigned size = GetWavDataSize(in);
+//  // unsigned rate = GetWavDataSampleRate(in);
+//  // GetWavData(in, data);
+//  cout << "sample rate from wav file is:  " << rate << endl;
+//
+//  // input data
+//  char *data  = new char[size];
+//  in.read(data,size);
+//  // output data
+//  char *data2 = new char[size];
+//  char *data3 = new char[size];
+//
+//  // short is 2 bytes, 16 bit data
+//  short *samples = reinterpret_cast<short*>(data);
+//  short *samples2 = reinterpret_cast<short*>(data2);  // to build truncated power output
+//  short *samples3 = reinterpret_cast<short*>(data3);  // to build bspline output
+//
+//  cout << "The data size n is:  " << count << " samples " << endl;
+//
+//  // coefficients for spline function
+//  double *trunccoeffs = new double[k+d];
+//  double *bcoeffs = new double[k+d];
+//  double *DeBoor = new double[(k+d)*(k+d)];
+//
+//  // coefficients for spline function
+//  // double *bspcoeffs = new double[k+d];
+//
+//  // matrix coefficients for linear system to solve for
+//  // shifted power function
+//  double *mat = new double[(k+d)*(k+d)];
+//  // matrix coefficients for inverse
+//  double *matinv = new double[(k+d)*(k+d)];
+//
+//  // matrix for change of basis from B-spline basis
+//  // to truncated power function basis
+//  double *bmat = new double[(k+d)*(k+d)];
+//  // inverse matrix for change of basis from truncated
+//  // power function basis to B-spline basis
+//  double *bmatinv = new double[(k+d)*(k+d)];
+//  double *temp = new double[(k+d)*(k+d)];
+//
+//  ////////////////////////////////////////////////////////////////////
+//  // the rest of main is now calling functions to do the interpolation
+//
+//  // initialize BSPsamples to 0
+//  initBSPsamples(k, d, BSPsamples);
+//
+//  // set up interpolation input values in [0,1]
+//  fillinputs(d, k, inputs);
+//
+//  // set up knot values extending [0,1]
+//  fillknots(d, k, knots);
+//
+//  // fill array allzeros[] with all zeros from data
+////  NumAllZeros = FindAllZeros(sampleRate, Periods, Freq, data, allzeros);
+//    NumAllZeros = 0;  //  this will not be called !!
+//  // for (i=NumAllZeros-20; i<NumAllZeros+1; i++)
+//  // {
+//  //    cout << allzeros[i] << endl;
+//  // }
+//  LastZero = allzeros[NumAllZeros];
+//  // cout << "last zero:  " <<  LastZero << endl;
+//
+//  // fill array zeros[] with zeros closest to periods
+////  NumZeros = FindZerosClosestToPeriods(sampleRate, Periods, Freq, zeros, allzeros, SPP, LastZero);
+//    NumZeros = 0;  //   THIS IS NOT BEING CALLED !!
+//
+//  int NumSteps = NumZeros-1-40;
+//  double *bcoeffsteps = new double[NumSteps];
+//
+//  // Truncated power function basis:
+//  // (t-knots[0])^d_+,...,(t-knots[N-d-1])^d_+,
+//  // Interpolating function:
+//  // f(t) = a0*(t-knots[0])^d_+ +...+ a(N-d-1)*(t-knots[N-d-1])^d_+
+//
+//  // linear system to solve for function f(t)
+//  // one row for each input value inputs[0],...,inputs[k+d-1]
+//
+//  // matrix is k+d by k+d, say with entries aij
+//  // set matrix entries to solve for trunccoeffs
+//
+//  fillmat(k, d, mat, inputs, knots);
+//
+//  // matrix bmat describes B-splines as column vectors or coordinate
+//  // vectors with respect to the truncated power function basis.
+//  // Each coordinate vector comes from a quotient of Vandermonde
+//  // determinants which interprets the divided difference formulation
+//  // of B-splines through Cramer's Rule.
+//
+//  // initialize bmat with zeros:
+//  initbmat(k, d, bmat);
+//
+//  fillbmat(k, d, bmat, knots);
+//
+//  // set entries for inverse matrix of mat and bmat (as identity)
+//
+//  setidentity(k+d, matinv);
+//  setidentity(k+d, bmatinv);
+//
+//  // To compute spline coefficients, need inverse matrix.
+//  // Solve matrix system Ax=b with A=mat[] and b=outputs[].
+//  // Since we will use this same matrix equation with different
+//  // values for b on each cycle, we should find the inverse
+//  // of A and solve for x on each cycle as x=A^{-1}b.
+//  // After computing the truncated power function coefficients
+//  // we can use the polar forms, or use the change of basis
+//  // matrix coming from Cramer's rule applied to the B-splines,
+//  // to compute the B-spline coefficients.
+//
+//  // example: knot sequence 0,1,2,3,4,5,6,7,8,  degree d=2,
+//  // shifted power basis: (t-0)^2_+,...,(t-5)^2_+, dim = 6.
+//  // basic interval [2,6], inputs: 2,2.5,3,4,5,6.
+//  // Note: Schoenberg-Whitney Theorem guarantees a unique solution.
+//  // matrix:
+//  // inputs, coeffs
+//  // 2:      (2-0)^2   (2-1)^2     0        0       0      0
+//  // 2.5:    (2.5-0)^2 (2.5-1)^2 (2.5-2)^2  0       0      0
+//  // 3:      (3-0)^2   (3-1)^2   (3-2)^2    0       0      0
+//  // 4:      (4-0)^2   (4-1)^2   (4-2)^2  (4-3)^2   0      0
+//  // 5:      (5-0)^2   (5-1)^2   (5-2)^2  (5-3)^2 (5-4)^2  0
+//  // 6:      (6-0)^2   (6-1)^2   (6-2)^2  (6-3)^2 (6-4)^2 (6-5)^2
+//  //
+//  // This matrix would only require two row operations to reach
+//  // lower triangular form.  This would be more efficient than
+//  // finding the inverse.  It could also be used with back
+//  // substitution to solve for the coefficients in each cycle.
+//  // If we do find the inverse, then it could be computed most
+//  // efficiently by working from bottom right up to top left.
+//  // Or maybe it just doesn't matter much.
+//
+//  // basic row operations:  swap, multiply, getzero
+//  // swap swaps two rows
+//  // multiply multiplies one row by a nonzero constant
+//  // getzero gets a zero in a row and column using a pivot
+//
+//  // find matinv[] = inverse of mat[] using gausselim
+//
+//  matcopy(d+k, mat, temp);
+//  gausselim(d+k, temp, matinv);
+//
+//  // find bmatinv[] = inverse of bmat[] using gausselim
+//
+//  matcopy(d+k, bmat, temp);
+//  gausselim(d+k, temp, bmatinv);
+//
+//  // printmat(d+k, mat);
+//  // printmat(d+k, matinv);
+//  // printmat(d+k, bmat);
+//  // printmat(d+k, bmatinv);
+//
+//  // Test matrix inverse with multiplication mat*matinv
+//  // cout << "Product matrix mat*matinv:" << endl << endl;
+//  // printmult(k+d, mat, matinv);
+//
+//  // Test matrix inverse with multiplication bmat*bmatinv
+//  // cout << "Product matrix bmat*bmatinv:" << endl << endl;
+//  // printmult(k+d, bmat, bmatinv);
+//
+//  // Now loop through all Periods and do bspline fit
+//
+//  bsplinefit(k, d, count, NumZeros, samples, samples2, samples3, inputs, outputs, knots, SPP, trunccoeffs, matinv, bcoeffsteps, bcoeffs, bmatinv, DeBoor, BSPsamples);
+//
+//  // Using A450.wav, a guitar note played at approx 450 Hz
+//  // but Audacity plot spectrum says it's about 452 Hz
+//  // which is about 46 cents over 440.  The number of samples
+//  // per period at 452 Hz would be 97.56, so we are rounding up
+//  // to 98 samples per period, which has the nice division
+//  // property:  44100/98 = 450.  So we'll just call it 450 Hz.
+//  // Note: 44100 = 2^2*3^2*5^2*7^2.
+//
+//  // write to wave files
+//
+//  // for (i=0; i<44; i++)
+//  // {
+//  //     cout << i << "  " << header[i] << endl;
+//  // }
+//
+//  fstream out("tspline.wav",ios_base::binary|ios_base::out);
+//  out.write(header,44);
+//  out.write(data2,size);
+//
+//  fstream out1("DeBoor.wav",ios_base::binary|ios_base::out);
+//  out1.write(header,44);
+//  out1.write(data3,size);
+//
+//
+//  size = (unsigned) (k+d)*2*441;
+//  h->data_size = size;
+//  fstream out2("bcoeffs.wav",ios_base::binary|ios_base::out);
+//  out2.write(header,44);
+//  out2.write(BSPcoeffs,(k+d)*2*441);
+//
+//  // free
+//
+//  delete[] data;
+//  delete[] data2;
+//  delete[] data3;
+//  delete[] mat;
+//  delete[] matinv;
+//  delete[] bmat;
+//  delete[] bmatinv;
+//  delete[] inputs;
+//  delete[] outputs;
+//  delete[] knots;
+//  delete[] bcoeffs;
+//  delete[] trunccoeffs;
+//  delete[] DeBoor;
+//  delete[] allzeros;
+//  delete[] zeros;
+//  delete[] SPP;
+//  delete[] temp;
+//  delete[] BSPcoeffs;
+//  // delete[] header;
+//
   return 0;
 
 }  // end main
 
 // new functions for JUCE version
 
+// compute B-spline value at t in [0,1] for basis with k subintervals on [0,1], d=3
+
+float bSplineVal(int k, int j, float t)
+{
+    int d = 3;
+    int n = k + d;  // dimension of splines
+    int N = n + d;  // last index of knot sequence
+    juce::Array<float> controlCoeffs;
+    for (int i=0; i<n*n; i++) {
+        controlCoeffs.add(0);
+    }
+    controlCoeffs.set(n*j, 1);
+    float incr = 1 / (float) k;
+    juce::Array<float> knotVals;
+    for (int i=0; i<N+1; i++) {
+        knotVals.add((i-d) * incr);
+    }
+    int i, J;  // J index in DeBoor Algorithm
+    int p;  // stage in DeBoor Algorithm
+    float denom, fac1, fac2, fval;
+
+    fval = 0.0f;
+    for (i=1; i<N; i++)
+    {
+        if (t < knotVals[i]) {
+            J = i-1;
+            if (J > n-1) {
+                J = n-1;
+            }
+//            DBG("DeBoor J: " << J);
+            break;
+        }
+    }
+    for (p=1; p<d+1; p++)
+    {
+        for (i=J-d+p; i<J+1; i++)
+        {
+           denom = (knotVals[i+d-(p-1)]-knotVals[i]);
+           fac1 = (t-knotVals[i]) / denom;
+           fac2 = (knotVals[i+d-(p-1)]-t) / denom;
+           controlCoeffs.set((k+d)*i+p, fac1 * controlCoeffs[(k+d)*i+(p-1)]
+              + fac2 * controlCoeffs[(k+d)*(i-1)+(p-1)]);
+        }
+    }
+    fval = controlCoeffs[(k+d)*J+d];
+    return fval;
+}
+
 // compute the outputs of a spline on one cycle using DeBoor algorithm
-void computeCycleSplineOutputs(CycleSpline& cycle, float* splineOutputs)
+void computeCycleSplineOutputs(CycleSpline& cycle)
 {
     int k = cycle.k, d = cycle.d;
-    float *DeBoor = new float[(k+d)*(k+d)];
+    int n = k + d;
+    int N = n + d;
+    juce::Array<float> controlCoeffs;
+    for (int i=0; i<(k+d)*(k+d); i++) {
+        controlCoeffs.add(0);
+    }
+    float incr = 1 / (float) k;
+    juce::Array<float> knotVals;
+    for (int i=0; i<N+1; i++) {
+        knotVals.add((i-d) * incr);
+    }
     float a = cycle.a, b = cycle.b;
     int i, h, J;  // J index in DeBoor Algorithm
-    int N=k+2*d;
     int p;  // stage in DeBoor Algorithm
-    int numSamples = int (b) - int (a);
+    float length = b - a;
+    int numSamples = (int) b - (int) a;
     float denom, fac1, fac2, t, fval;
     int Imin = (int)ceil(a);       // first sample index
     int Imax = Imin + numSamples - 1;  // last sample index
     int M = (int)(Imax - Imin) + 1;   // number of samples
     if (M<1) return;
+    // we need outputs from spline to match number of samples in interval
+    // initialize to zeros, then reset with values computed from bcoeffs
+    cycle.outputs.clear();
+    for (int i=0; i<Imax-Imin+1; i++) {
+        cycle.outputs.add(0);
+    }
     for (h=Imin; h<Imax+1; h++)  // loop on samples
     {
-        t = ((float)h-a)/numSamples;  // t value in interval [0,1]
+        t = ((float)h-a)/length;  // t value in interval [0,1]
         fval = 0.0f;
         // set K value
-        for (i=1; i<N-d; i++)
+        for (i=1; i<N; i++)
         {
-            if (t < cycle.knots[i])
+            if (t < knotVals[i])
             {
               J = i-1;
+                if (J > n-1) {
+                    J = n-1;
+                }
               break;
             }
         }
         for (i=0; i<d+k; i++)
         {
-            DeBoor[(k+d)*i+0] = cycle.bcoeffs[i];
+            controlCoeffs.set((k+d)*i+0, cycle.bcoeffs[i]);
         }
         for (p=1; p<d+1; p++)
         {
             for (i=J-d+p; i<J+1; i++)
             {
-              denom = (cycle.knots[i+d-(p-1)]-cycle.knots[i]);
-              fac1 = (t-cycle.knots[i]) / denom;
-              fac2 = (cycle.knots[i+d-(p-1)]-t) / denom;
-              DeBoor[(k+d)*i+p] = fac1 * DeBoor[(k+d)*i+(p-1)]
-              + fac2 * DeBoor[(k+d)*(i-1)+(p-1)];
+              denom = (knotVals[i+d-(p-1)]-knotVals[i]);
+              fac1 = (t-knotVals[i]) / denom;
+              fac2 = (knotVals[i+d-(p-1)]-t) / denom;
+              controlCoeffs.set((k+d)*i+p, fac1 * controlCoeffs[(k+d)*i+(p-1)]
+                  + fac2 * controlCoeffs[(k+d)*(i-1)+(p-1)]);
             }
         }
-        fval = DeBoor[(k+d)*J+d];
-        splineOutputs[h] = fval;
+        fval = controlCoeffs[(k+d)*J+d];
+        cycle.outputs.set(h-Imin, fval);
     }
 }
 
-void computeCycleBcoeffs(CycleSpline& cycle, float *samples)
+void computeCycleBcoeffs(CycleSpline& cycle, AudioBuffer<float>& samples)
+{
+    int k = cycle.k, d = cycle.d;
+    int n = k + d;
+    int N = n + d;  // N is last index of knot sequence, N - d = n
+    juce::Array<float> inputVals;
+    for (int i=0; i<n; i++) {
+        inputVals.add(cycle.inputs[i]);
+    }
+    // outputVals are the target wav data values to match with splines
+    juce::Array<float> outputVals;
+    for (int i=0; i<n; i++) {
+        outputVals.add(0);
+        cycle.targets.add(0);
+    }
+    for (int i=1; i<n-1; i++) {
+        float output = interpFloat(inputVals[i], samples);
+        outputVals.set(i, output);
+        cycle.targets.set(i, output);
+    }
+//    DBG("set outputVals");
+    // now reset inputs to be on the interval [0,1] in the usual way
+    // (ie. on the interval breakpoints 0,1/k,2/k,...,(k-1)/k,k and then
+    // also the two other points 0.5/k and 1 - 0.5/k )
+    float incr = 1 / (float) k;
+    inputVals.set(0, 0.0);
+    inputVals.set(1, 0.5 * incr);
+    inputVals.set(2, incr);
+    inputVals.set(n-2, 1 - 0.5 * incr);
+    inputVals.set(n-1, 1.0);
+    // Need n inputs, i=0...n-1, have 5, so another n-5 at indices 3 to n-3
+    for (int i=3; i<n-2; i++) {
+        inputVals.set(i, inputVals[i-1] + incr);  // +incr,...,(n-5)*incr
+    }
+//    DBG("inputVals: ");
+//    for (int i=0; i<n; i++) {
+//        DBG("inputVals[" << i << "] = " << inputVals[i]);
+//    }
+    juce::Array<float> knotVals;
+    for (int i=0; i<N+1; i++) {
+        knotVals.add((i-d) * incr);
+    }
+//    DBG("knotVals: ");
+//    for (int i=0; i<N+1; i++) {
+//        DBG("knotVals[" << i << "] = " << knotVals[i]);
+//    }
+    // Next, need to set up (k+d) by (k+d) linear system to solve for the B-spline coefficients.
+    // Once we solve for the matrix inverse, then just multiply matrix * column vector
+    // (vector of target values called outputs) to get coefficients.
+    // Each row of matrix corredsponds to plugging in one input, say s_i, and setting
+    // equal to target value, say y_i.  The function to solve for is a sum of Bsplines.
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<n*n; i++) {
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+//    DBG("set matrices A and B");
+    for (int i=0; i<n; i++) {
+//        DBG("computing row i: " << i);
+//        DBG("inputVals[" << i << "]: " << inputVals[i]);
+        for (int j=0; j<n; j++) {
+            val = bSplineVal(k, j, inputVals[i]);  // A[i,j]
+//            DBG("computing val with k,j: " << k << ", " << j << " val: " << val);
+            A.set(i*n+j, val);
+            temp.set(i*n+j, val);
+            B.set(i*n+j, 0);
+        }
+    }
+//    DBG("reset matrices A and B");
+    for (int i=0; i<n; i++) {
+        B.set(i*n+i, 1.0);
+    }
+//    DBG("B set to identity");
+//    DBG("matrix A:");
+//    printMatrix(n, A);
+//    DBG("matrix B:");
+//    printMatrix(n, B);
+
+    // Now we need inverse of A, n x n, with n = k+d
+    gaussElim(n, temp, B);
+//    printMult(n, A, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    y = multMatCol(n, B, outputVals);
+    for (int i=0; i<n; i++) {
+        cycle.bcoeffs.set(i, y[i]);
+    }
+}
+
+void computeCycleBcoeffs2(CycleSpline& cycle, AudioBuffer<float>& samples)
 {
 //    from input cycle we get: k, d, and other data:
 //    int d;  // degree of B-splines, default d = 3
 //    int k; // number of subintervals, can vary, use default 20
 //    float a, b; // for interval [a,b] on time axis, a = left end point, b = right end point
-//    float *subintervals;  // default subinterval size = (b-a)/k, endpoints: u_0,...,u_k (k+1 values)
-//    float *inputs;  // default at a, b, and subinterval breakpoints, and midpoints of outer two subintervals
-//    float *knots;   // default uniform knot sequence includes subinterval endpoints, and d more on each end
-//    float *bcoeffs; // B-spline coefficients, d+k of them
+//    Array<float> subintervals;  // default subinterval size = (b-a)/k, endpoints: u_0,...,u_k (k+1 values)
+//    Array<float> inputs;  // default at a, b, and subinterval breakpoints, and midpoints of outer two subintervals
+//    Array<float> knots;   // default uniform knot sequence includes subinterval endpoints, and d more on each end
+//    Array<float> bcoeffs; // B-spline coefficients, d+k of them
     
     int k = cycle.k, d = cycle.d;
-    Array<float> outputs;
-    for (int i=0; i<k+d+1; i++)
-    {
-//        outputs[i] = interpFloat(cycle.inputs[i], samples);
-        outputs.add(0);
+    juce::Array<float> inputVals;
+    for (int i=0; i<k+d; i++) {
+        inputVals.add(0);
     }
-    float *trunccoeffs = new float[k+d];
-    float *bcoeffs = new float[k+d];
-    float *mat = new float[(k+d)*(k+d)];
-    float *matinv = new float[(k+d)*(k+d)];
-    float *bmat = new float[(k+d)*(k+d)];
-    float *bmatinv = new float[(k+d)*(k+d)];
-//    float *temp = new float[(k+d)*(k+d)];
-//    fillmat(k, d, mat, cycle.inputs, cycle.knots);
-//    initbmat(k, d, bmat);
-//    fillbmat(k, d, bmat, cycle.knots);
-//    setidentity(k+d, matinv);
-//    setidentity(k+d, bmatinv);
-//    matcopy(d+k, mat, temp);
-//    gausselim(d+k, temp, matinv);
-//    matcopy(d+k, bmat, temp);
-//    gausselim(d+k, temp, bmatinv);
-//    gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
-//    getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
-//    cycle.bcoeffs = bcoeffs;
+    double *inputs = new double[k+d];
+    for (int i=0; i<k+d; i++) {
+        inputs[i] = cycle.inputs[i];
+        inputVals.set(i, cycle.inputs[i]);
+    }
+    // outputs are the target wav data to match with splines
+    juce::Array<float> outputVals;
+    for (int i=0; i<k+d; i++) {
+        outputVals.add(0);
+    }
+    double *outputs = new double[k+d];
+    outputs[0] = 0;
+    outputs[k+d-1] = 0;
+    for (int i=1; i<k+d-1; i++) {
+        outputs[i] = interpFloat(inputs[i], samples);
+        outputVals.set(i, interpFloat(inputVals[i], samples));
+//        DBG("outputs[" << i << "] =  " << outputs[i]);
+    }
+    float incr = 1 / (float) k;
+    juce::Array<float> knotVals;
+    for (int i=0; i<k+2*d; i++) {
+        knotVals.add((i-d) * incr);
+    }
+    double *knots = new double[k+2*d];
+//    for (int i=0; i<k+d; i++) {
+//        knots[i] = cycle.knots[i];
+//    }
+    fillinputs(d, k, inputs);
+    fillknots(d, k, knots);
+    double *trunccoeffs = new double[k+d];
+    double *bcoeffs = new double[k+d];
+    double *mat = new double[(k+d)*(k+d)];
+    double *matinv = new double[(k+d)*(k+d)];
+    double *bmat = new double[(k+d)*(k+d)];
+    double *bmatinv = new double[(k+d)*(k+d)];
+    double *temp = new double[(k+d)*(k+d)];
+    fillmat(k, d, mat, inputs, knots);
+    initbmat(k, d, bmat);
+    fillbmat(k, d, bmat, knots);
+    setidentity(k+d, matinv);
+    setidentity(k+d, bmatinv);
+    matcopy(d+k, mat, temp);
+    gausselim(d+k, temp, matinv);
+    matcopy(d+k, bmat, temp);
+    gausselim(d+k, temp, bmatinv);
+    gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
+    getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
+    for (int i=0; i<k+d; i++) {
+        float bcoeff = (float)bcoeffs[i];
+        cycle.bcoeffs.set(i, bcoeff);
+//        DBG("bcoeffs[" << i << "] =  " << bcoeffs[i]);
+//        DBG("cycle.bcoeffs[" << i << "] =  " << cycle.bcoeffs[i]);
+    }
+    delete[] inputs;
+    delete[] outputs;
+    delete[] knots;
+    delete[] bcoeffs;
     delete[] trunccoeffs;
     delete[] mat;
     delete[] matinv;
     delete[] bmat;
     delete[] bmatinv;
-//    delete[] temp;
+    delete[] temp;
 }
 
-void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *samples2, short *samples3, float *inputs, float *outputs, float *knots, float *SPP, float *trunccoeffs, float *matinv, float *bcoeffsteps, float *bcoeffs, float *bmatinv, float *DeBoor, short *BSPsamples)
+void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *samples2, short *samples3, double *inputs, double *outputs, double *knots, double *SPP, double *trunccoeffs, double *matinv, double *bcoeffsteps, double *bcoeffs, double *bmatinv, double *DeBoor, short *BSPsamples)
 {
   // uses these function calls:
   // deboorfit(k, d, u0, SPP, bcoeffs, knots, samples3, DeBoor);
@@ -447,66 +647,66 @@ void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *s
   // getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
   // getwaveoutputs(k, d, u0, inputs, outputs, SPP[J], samples);
   // gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
-  int J = 0;  // for loop on Periods
-  // period lengths = SPP[J]
-  // u0 = left endpoint, uk = right endpoint
-  // interval for interpolation is just SPP[J]*[0,1]
-  // so input values are just SPP[J]*inputs[i]
-  float u0 = 0.0f;
+//  int J = 0;  // for loop on Periods
+//  // period lengths = SPP[J]
+//  // u0 = left endpoint, uk = right endpoint
+//  // interval for interpolation is just SPP[J]*[0,1]
+//  // so input values are just SPP[J]*inputs[i]
+//  double u0 = 0.0f;
+//
+//  // loop on Periods found = NumZeros, starting with first Period J=1
+//  // J^th sub-interval is [zeros[J-1],zeros[J]].
+//  for (J=1; J<NumZeros; J++)
+//  // for (J=1; J<41; J++)
+//  {
+//      // if (J > 12) { break; }
+//
+//// capture the wave file data for current cycle, using linear
+//// interpolation bewteen samples, with left endpoint u0
+//// outputs[] are normalized to be in [-1,1]
+//
+//   getwaveoutputs(k, d, u0, inputs, outputs, SPP[J], samples);
+//
+//// cout << endl << "outputs:" << endl << endl;
+//// cout << i << ":  " << outputs[i] << endl;
+//
+//// coefficients for shifted power functions
+//// given by matrix inverse times output values
+//
+//   gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
+//
+//   // coefficients for B-spline functions
+//   // given by bmatinv matrix times trunccoeffs
+//
+//   getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
+//
+//   // write the bcoeffs to BSPsamples array for output
+//
+//   writebcoeffs(J-1, k, d, bcoeffs, BSPsamples);
+//
+//// construct output wave data with truncated power spline coefficients
+//// on interval from u0 to u0+SPP[J] and put in samples2[i]
+//// for index values i in the above interval, from ceil(u0) to floor(u0+SPP[J])
+//
+//   truncfit(k, d, u0, SPP[J], trunccoeffs, knots, samples2 );
+//
+//// re-construct wave data with B-spline coefficients
+//
+//   deboorfit(k, d, u0, SPP[J], bcoeffs, knots, samples3, DeBoor);
+//
+//   // for checking output matches at zeros:
+//   // if (J % 2 == 0)  // J even
+//   // {
+//   //    truncfit2(u0, SPP[J], samples2, samples3);
+//   // }
+//
+//   // cout << J << "  u0 value is:  " << u0 << "  SPP[J]:  " << SPP[J] << endl;
+//
+//   u0 = u0 + SPP[J];
 
-  // loop on Periods found = NumZeros, starting with first Period J=1
-  // J^th sub-interval is [zeros[J-1],zeros[J]].
-  for (J=1; J<NumZeros; J++)
-  // for (J=1; J<41; J++)
-  {
-      // if (J > 12) { break; }
+//  } // end first J loop on Periods
 
-// capture the wave file data for current cycle, using linear
-// interpolation bewteen samples, with left endpoint u0
-// outputs[] are normalized to be in [-1,1]
-
-   getwaveoutputs(k, d, u0, inputs, outputs, SPP[J], samples);
-    
-// cout << endl << "outputs:" << endl << endl;
-// cout << i << ":  " << outputs[i] << endl;
-
-// coefficients for shifted power functions
-// given by matrix inverse times output values
-
-   gettrunccoeffs(k, d, trunccoeffs, matinv, outputs);
-
-   // coefficients for B-spline functions
-   // given by bmatinv matrix times trunccoeffs
-   
-   getbcoeffs(k, d, bcoeffs, trunccoeffs, bmatinv);
-
-   // write the bcoeffs to BSPsamples array for output
-
-   writebcoeffs(J-1, k, d, bcoeffs, BSPsamples);
-
-// construct output wave data with truncated power spline coefficients
-// on interval from u0 to u0+SPP[J] and put in samples2[i]
-// for index values i in the above interval, from ceil(u0) to floor(u0+SPP[J])
-
-   truncfit(k, d, u0, SPP[J], trunccoeffs, knots, samples2 );
-
-// re-construct wave data with B-spline coefficients
-
-   deboorfit(k, d, u0, SPP[J], bcoeffs, knots, samples3, DeBoor);
-
-   // for checking output matches at zeros:
-   // if (J % 2 == 0)  // J even
-   // {
-   //    truncfit2(u0, SPP[J], samples2, samples3);
-   // }
-  
-   // cout << J << "  u0 value is:  " << u0 << "  SPP[J]:  " << SPP[J] << endl;
-
-   u0 = u0 + SPP[J];
-
-  } // end first J loop on Periods
-
-  getbcoeffsteps(k, d, NumZeros, bcoeffsteps, bcoeffs);
+//  getbcoeffsteps(k, d, NumZeros, bcoeffsteps, bcoeffs);
 
 //  for (J=41; J<NumZeros; J++)
 //  {
@@ -520,41 +720,41 @@ void bsplinefit(int k, int d, unsigned n, int NumZeros, short *samples, short *s
 //  } // end second J loop on Periods
 
   // the rest are zeros
-  int m = (int)floor(u0);
-  int r;
-  cout << "m value:  " << m << endl;
-
-  // for (r=0; r<n-1; r++)   //  write all as zero
-  for (r=m; r<(int)n; r++)      //  write samples past last interval as zero
-  {
-      // samples2[k] = samples2[k-98];
-      samples2[r] = 0;
-      samples3[r] = 0;
-  }
+//  int m = (int)floor(u0);
+//  int r;
+//  cout << "m value:  " << m << endl;
+//
+//  // for (r=0; r<n-1; r++)   //  write all as zero
+//  for (r=m; r<(int)n; r++)      //  write samples past last interval as zero
+//  {
+//      // samples2[k] = samples2[k-98];
+//      samples2[r] = 0;
+//      samples3[r] = 0;
+//  }
  
 }    // end function bsplinefit
 
 // write the bspline coefficients as shorts to array in col j
-void writebcoeffs(int j, int k, int d, float *bcoeffs, short *BSPsamples)
-{
-    int i=0;
-    for (i=0; i<k+d; i++)
-    {
-	BSPsamples[441*i + j] = (short) (32768.0f * bcoeffs[i]);
-    }
-}     // end function writebcoeffs
+//void writebcoeffs(int j, int k, int d, float *bcoeffs, short *BSPsamples)
+//{
+//    int i=0;
+//    for (i=0; i<k+d; i++)
+//    {
+//	BSPsamples[441*i + j] = (short) (32768.0f * bcoeffs[i]);
+//    }
+//}     // end function writebcoeffs
+//
+//void initBSPsamples(int k, int d, short *BSPsamples)
+//{
+//    int j=0;
+//    for (j=0; j<(k+d)*441; j++)
+//    {
+//	BSPsamples[j] = 0;
+//    }
+//}
 
-void initBSPsamples(int k, int d, short *BSPsamples)
-{
-    int j=0;
-    for (j=0; j<(k+d)*441; j++)
-    {
-	BSPsamples[j] = 0;
-    }
-}
 
-
-void fillinputs(int d, int k, float *inputs)
+void fillinputs(int d, int k, double *inputs)
 {
 
 // This function puts k+d inputs values into the array
@@ -578,7 +778,7 @@ void fillinputs(int d, int k, float *inputs)
 // (we could also do other interpolation schemes, including
 //  derivatives, etc.)
 
-  float delta = 1.0f / (2*(float)k);
+  double delta = 1.0f / (2*(double)k);
   inputs[0]=0.0f; inputs[k+d-1]=1.0f;  // define endpoints
 
   // define values in pairs using half-steps delta
@@ -641,14 +841,14 @@ void fillinputs(int d, int k, float *inputs)
 // B-spline basis: B^d_0(t),...,B^d_(N-d-1)(t)
 // Dimension: N-d = k+d.
 
-void fillknots(int d, int k, float *knots)
+void fillknots(int d, int k, double *knots)
 {
 
   int i;
-  float delta = 1.0f / (float)k;
+  double delta = 1.0f / (double)k;
   int N=k+2*d;  // N is last index of knot sequence
   
-  knots[0]=-(float)d * delta;
+  knots[0]=-(double)d * delta;
 
   for (i=1; i< N+1; i++)
   {
@@ -676,19 +876,19 @@ void fillknots(int d, int k, float *knots)
 //   }
 //}
 
-void getwaveoutputs(int k, int d, float u0, float *inputs, float *outputs, float SPP, short *samples)
+void getwaveoutputs(int k, int d, double u0, double *inputs, double *outputs, double SPP, short *samples)
 {
-   int i;
-   float input;
-   for (i=0; i<d+k; i++)
-   {
-       input = u0 + inputs[i]*SPP;
-       outputs[i] = interp(input, samples);
-       //   cout << i << ":  " << outputs[i] << endl;
-   }
+//   int i;
+//   double input;
+//   for (i=0; i<d+k; i++)
+//   {
+//       input = u0 + inputs[i]*SPP;
+//       outputs[i] = interp(input, samples);
+//       //   cout << i << ":  " << outputs[i] << endl;
+//   }
 }
 
-void gettrunccoeffs(int k, int d, float *trunccoeffs, float *matinv, float *outputs)
+void gettrunccoeffs(int k, int d, double *trunccoeffs, double *matinv, double *outputs)
 {
    int i,j;
    for (i=0; i<k+d; i++)
@@ -723,7 +923,7 @@ void getlinearbcoeffs(int k, int d, float *bcoeffsteps, float *bcoeffs)
 }
 
 
-void getbcoeffs(int k, int d, float *bcoeffs, float *trunccoeffs, float *bmatinv)
+void getbcoeffs(int k, int d, double *bcoeffs, double *trunccoeffs, double *bmatinv)
 {
     int i,j;
     for (i=0; i<k+d; i++)
@@ -800,26 +1000,26 @@ void deboorfit(int k, int d, float u0, float SPP, float *bcoeffs, float *knots, 
       // set K value
       for (i=1; i<N-d; i++)
       {
-	  if (t < knots[i]) 
-	  { 
-	      K = i-1; 
-	      break;
-	  }
+          if (t < knots[i])
+          {
+              K = i-1;
+              break;
+          }
       }
       for (i=0; i<d+k; i++)
       {
-	  DeBoor[(k+d)*i+0] = bcoeffs[i];
+          DeBoor[(k+d)*i+0] = bcoeffs[i];
       }
       for (p=1; p<d+1; p++)
       {
-	  for (i=K-d+p; i<K+1; i++)
-	  {
-	      denom = (knots[i+d-(p-1)]-knots[i]);
-	      fac1 = (t-knots[i]) / denom;
-	      fac2 = (knots[i+d-(p-1)]-t) / denom;
-	      DeBoor[(k+d)*i+p] = fac1 * DeBoor[(k+d)*i+(p-1)] 
-		  + fac2 * DeBoor[(k+d)*(i-1)+(p-1)];
-	  }
+          for (i=K-d+p; i<K+1; i++)
+          {
+              denom = (knots[i+d-(p-1)]-knots[i]);
+              fac1 = (t-knots[i]) / denom;
+              fac2 = (knots[i+d-(p-1)]-t) / denom;
+              DeBoor[(k+d)*i+p] = fac1 * DeBoor[(k+d)*i+(p-1)]
+              + fac2 * DeBoor[(k+d)*(i-1)+(p-1)];
+          }
       }
       fval = DeBoor[(k+d)*K+d];
       samples3[h] = (short)(fval * 32768.0f);

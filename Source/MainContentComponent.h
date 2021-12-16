@@ -72,10 +72,7 @@ public:
         shutdownAudio();
     }
     
-    void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override
-    {
-        transportSource.prepareToPlay (samplesPerBlockExpected, sampleRate);
-    }
+    void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override;
 
     void getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill) override;
 
@@ -87,6 +84,8 @@ public:
     void resized() override;
 
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
+    
+    float computeSpline(float t);
     
     bool audioDataLoaded = false;
 
@@ -145,9 +144,19 @@ private:
 
     void shadeButtonClicked();
    
+    void targetButtonClicked();
+    
+    void playCycleButtonClicked();
+    
     void readAudioData (File file);
 
     void readAudioData2 (AudioFormatReader *reader);
+    
+    void updateAngleDelta();
+    
+    void setSplineArrays();
+    
+    void initSplineArrays();
     
     struct fileheader
     {
@@ -173,10 +182,16 @@ private:
     juce::TextButton stopButton;
     juce::TextButton graphButton;
     juce::TextButton shadeButton;
+    juce::TextButton targetButton;
     juce::TextButton selectCycleButton;
+    juce::TextButton playCycleButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
+    juce::Slider frequencySlider;
+    juce::Label  frequencyLabel;
+    juce::Slider kValSlider;
+    juce::Label  kValLabel;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -184,14 +199,13 @@ private:
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     juce::AudioTransportSource transportSource;
     TransportState state;
-//    juce::AudioSampleBuffer fileBuffer;
     juce::AudioBuffer<float> floatBuffer;
     juce::AudioFormatReader *reader;
     
     unsigned dataSize,          // size of data in bytes
              sampleRate,        // sample rate
              sampleCount;       // number of data samples
-    float freqGuess = 70;
+    float freqGuess = 220;
     char buffer[44];            // for wav file header
     float w = 0, h = 0;         // width and height of display for MainContentComponent
     float leftEndPoint = 0;     // left endpoint in (float)samples of Interval to graph
@@ -200,6 +214,7 @@ private:
     float magnify = 1;          // to scale the size of Interval
     float magfactor = 1;        // accumulate to give magnification
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
+    int kVal = 20;              // k = number of subintervals for splines
     // zeros in audio data are computed based on linear interpolation between audio samples
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
@@ -209,7 +224,13 @@ private:
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;
-
+    bool playCycleOn = false;
+    float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
+    double currentFrequency = 220.0, targetFrequency = 220.0;
+    // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
+    juce::Array<float> controlCoeffs;
+    juce::Array<float> knotVals;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };
 

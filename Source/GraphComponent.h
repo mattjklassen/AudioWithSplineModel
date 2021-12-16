@@ -28,17 +28,22 @@ public:
         rightEP.setValue(1200);
     }
     
-    void setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned sampleRate);
+    void setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned sampleRate, int kVal);
     
     void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess);
+    
+    void setkVal(int _kVal);
     
     AudioBuffer<float> floatBuffer;
     bool audioLoaded = false;
     bool updateGraph = false;
     bool cyclesToGraph = false;
     bool callShadeCycles = false;
+    bool graphSplineCycle = false;
+    bool plotTargets = false;
     bool hardLeft = true;
     int numSamples = 1000;
+    int kVal = 20;
     float freqGuess = 70;
     float magnify = 1;
     float leftEndPoint;
@@ -72,6 +77,8 @@ public:
 
     void resized() override;
 
+    CycleSpline cycleToGraph = CycleSpline(20, 0, 1);
+    
 private:
     
     void drawGraphBox(juce::Graphics& g, float w, float h);
@@ -84,6 +91,8 @@ private:
     
     void graphSignal(juce::Graphics& g);
 
+    void graphSpline(juce::Graphics& g, CycleSpline& cycle);
+    
     void scaleInterval();
 
     int getMult(int numSamples);
@@ -101,6 +110,9 @@ private:
     void shadeCycles(juce::Graphics& g);
         
     int getCycleNumber(float t);
+    
+    void plotTargetPoints(juce::Graphics& g, CycleSpline& cycle);
+
         
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphComponent)
