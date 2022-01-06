@@ -139,7 +139,6 @@
     <Lib/>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\Cycle.cpp"/>
     <ClCompile Include="..\..\Source\zeros.cpp"/>
     <ClCompile Include="..\..\Source\mat.cpp"/>
     <ClCompile Include="..\..\Source\GraphComponent.cpp"/>
@@ -147,6 +146,7 @@
     <ClCompile Include="..\..\Source\Main.cpp"/>
     <ClCompile Include="..\..\Source\MainContentComponent.cpp"/>
     <ClCompile Include="..\..\Source\bsp.cpp"/>
+    <ClCompile Include="..\..\Source\MetaSpline.cpp"/>
     <ClCompile Include="C:\JUCE\modules\juce_audio_basics\buffers\juce_AudioChannelSet.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -2091,13 +2091,13 @@
     <ClCompile Include="..\..\JuceLibraryCode\include_juce_gui_extra.cpp"/>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\Cycle.h"/>
     <ClInclude Include="..\..\Source\zeros.h"/>
     <ClInclude Include="..\..\Source\mat.h"/>
     <ClInclude Include="..\..\Source\GraphComponent.h"/>
     <ClInclude Include="..\..\Source\CycleSpline.h"/>
     <ClInclude Include="..\..\Source\MainContentComponent.h"/>
     <ClInclude Include="..\..\Source\bsp.h"/>
+    <ClInclude Include="..\..\Source\MetaSpline.h"/>
     <ClInclude Include="C:\JUCE\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.h"/>
     <ClInclude Include="C:\JUCE\modules\juce_audio_basics\buffers\juce_AudioChannelSet.h"/>
     <ClInclude Include="C:\JUCE\modules\juce_audio_basics\buffers\juce_AudioDataConverters.h"/>

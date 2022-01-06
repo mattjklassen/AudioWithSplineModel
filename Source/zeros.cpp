@@ -85,6 +85,7 @@ int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float
     int S = (int)Spp;  // generic guess at (int) samples per period
 //    DBG("samples per period guess: " << S);
     int J1 = S*Periods; // max number of samples to scan
+    int lastSample = floatBuffer.getNumSamples();
   
     // float Guess;  // for next zero close to period
     int J = 0;  // for big loop on samples
@@ -129,7 +130,8 @@ int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float
     
     // i is index for allzeros[]
     
-    for (J=1; J<J1; J++)  // loop on samples
+//    for (J=1; J<J1; J++)  // loop on samples
+    for (J=1; J<lastSample; J++)  // loop on samples
     {
        foundzero = 0;
        if (floatBuffer.getSample(0, J) == 0)
@@ -215,7 +217,7 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
     int J = 0;  // for loop on Periods
     float zero0, zero1;
     
-    for (J=1; J<Periods; J++)
+    for (J=1; J<Periods+1; J++)
     {
         while (Guess > allZeros[i])
         {
@@ -229,14 +231,17 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
         } else {
             cycleZeros.add(zero0);
         }
-        samplesPerCycle.add(int(cycleZeros[J] - cycleZeros[J-1]));
+        samplesPerCycle.add(int(cycleZeros[J]) - int(cycleZeros[J-1]));
         // cout << setw(4) << J << ":  "
           //   << fixed
           //   << setw(8) << setprecision(2) << zeros[J] << "  "
           //   << fixed
           //   << setw(6) << setprecision(2) << SPP[J] << endl;
         Guess = cycleZeros[J] + Spp;
-        if (Guess > LastZero) break;
+        if (Guess > LastZero) {
+            cycleZeros.add(LastZero);
+            break;
+        }
     } // end for J
     
         return J;   // This is number of zeros found by checking close to periods

@@ -16,7 +16,7 @@
 class CycleSpline
 {
 public:
-    
+
     int d;  // degree of B-splines, default d = 3
     int k; // number of subintervals, can vary, use default 20
     float a, b; // for interval [a,b] on time axis, a = left end point, b = right end point
@@ -34,6 +34,8 @@ public:
 
     CycleSpline (int _k, float _a, float _b);  // all other params are set to defaults
 
+    CycleSpline();
+    
     virtual ~CycleSpline ();
     
     void printData();

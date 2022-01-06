@@ -105,6 +105,11 @@ void GraphComponent::setkVal(int _kVal)
     kVal = _kVal;
 }
 
+void GraphComponent::setmVal(int _mVal)
+{
+    mVal = _mVal;
+}
+
 void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess)
 {
     cycleZeros = _cycleZeros;
@@ -401,6 +406,22 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
         computeCycleSplineOutputs(cycleToGraph);
         cycleToGraph.printData();
         graphSplineCycle = true;
+        
+        int j = 20;
+        cycles[0] = cycleToGraph;
+        int m = n + j;
+        a = cycleZeros[m];
+        b = cycleZeros[m+1];
+        cycles[1] = CycleSpline(kVal, a, b);
+        computeCycleBcoeffs(cycles[1], floatBuffer);
+        m = m + j;
+        a = cycleZeros[m];
+        b = cycleZeros[m+1];
+        cycles[2] = CycleSpline(kVal, a, b);
+        computeCycleBcoeffs(cycles[2], floatBuffer);
+        
+//        cyclesToPlay.add(cycleToGraph);
+//        DBG("added selected cycle to cyclesToPlay");
     }
     repaint();
 }

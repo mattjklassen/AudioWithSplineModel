@@ -439,9 +439,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\Cycle.cpp">
-      <Filter>AudioSplineModeling\Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Source\zeros.cpp">
       <Filter>AudioSplineModeling\Source</Filter>
     </ClCompile>
@@ -461,6 +458,9 @@
       <Filter>AudioSplineModeling\Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\bsp.cpp">
+      <Filter>AudioSplineModeling\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\MetaSpline.cpp">
       <Filter>AudioSplineModeling\Source</Filter>
     </ClCompile>
     <ClCompile Include="C:\JUCE\modules\juce_audio_basics\buffers\juce_AudioChannelSet.cpp">
@@ -2550,9 +2550,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\Cycle.h">
-      <Filter>AudioSplineModeling\Source</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Source\zeros.h">
       <Filter>AudioSplineModeling\Source</Filter>
     </ClInclude>
@@ -2569,6 +2566,9 @@
       <Filter>AudioSplineModeling\Source</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\bsp.h">
+      <Filter>AudioSplineModeling\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\MetaSpline.h">
       <Filter>AudioSplineModeling\Source</Filter>
     </ClInclude>
     <ClInclude Include="C:\JUCE\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.h">

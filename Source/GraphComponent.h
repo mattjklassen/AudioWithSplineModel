@@ -14,7 +14,6 @@
 #include <string>
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "CycleSpline.h"
-#include "Cycle.h"
 #include "bsp.h"
 
 
@@ -33,6 +32,7 @@ public:
     void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess);
     
     void setkVal(int _kVal);
+    void setmVal(int _mVal);
     
     AudioBuffer<float> floatBuffer;
     bool audioLoaded = false;
@@ -44,6 +44,7 @@ public:
     bool hardLeft = true;
     int numSamples = 1000;
     int kVal = 20;
+    int mVal = 1;
     float freqGuess = 70;
     float magnify = 1;
     float leftEndPoint;
@@ -78,6 +79,10 @@ public:
     void resized() override;
 
     CycleSpline cycleToGraph = CycleSpline(20, 0, 1);
+    
+//    Array<CycleSpline> cyclesToPlay;
+    
+    CycleSpline cycles[3];
     
 private:
     

@@ -17,6 +17,7 @@
 #include <iostream>
 #include <iomanip>
 #include "CycleSpline.h"
+#include "MetaSpline.h"
 #include "mat.h"
 
 using namespace std;
@@ -55,7 +56,9 @@ void writebcoeffs(int j, int k, int d, double *bcoeffs, short *BSPsamples);
 void getbcoeffsteps(int k, int d, int NumZeros, double *bcoeffsteps, double *bcoeffs);
 void getlinearbcoeffs(int k, int d, double *bcoeffsteps, double *bcoeffs);
 void computeCycleBcoeffs(CycleSpline& cycle, AudioBuffer<float>& samples);
-void computeCycleBcoeffs2(CycleSpline& cycle, AudioBuffer<float>& samples);
+void computeCycleBcoeffsOld(CycleSpline& cycle, AudioBuffer<float>& samples);
 void computeCycleSplineOutputs(CycleSpline& cycle);
+void computeMetaSplineOutputs(MetaSpline& spline);
+void computeMetaSplineBcoeffs(MetaSpline& spline);
 float bSplineVal(int k, int j, float t);
 

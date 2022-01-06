@@ -11,6 +11,11 @@
 #include "CycleSpline.h"
 #include "../JuceLibraryCode/JuceHeader.h"
 
+CycleSpline::CycleSpline()
+{
+    d = 3; k = 20; a = 0; b = 1;
+}
+
 CycleSpline::CycleSpline(int _k, float _a, float _b)
 {
     isKey = true;
@@ -131,12 +136,12 @@ void CycleSpline::printData()
 //            DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
 //        }
 //    }
-//    if (outputs.size() > 0) {
-//        DBG("outputs: ");
-//        for (int i=0; i<outputs.size(); i++) {
-//            DBG("outputs[" << i << "] = " << outputs[i]);
-//        }
-//    }
+    if (outputs.size() > 0) {
+        DBG("outputs: ");
+        for (int i=0; i<outputs.size(); i++) {
+            DBG("outputs[" << i << "] = " << outputs[i]);
+        }
+    }
 }
 
 

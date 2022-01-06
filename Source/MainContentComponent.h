@@ -85,13 +85,15 @@ public:
 
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
     
-    float computeSpline(float t);
+    float computeSpline(int control, float t);
     
     bool audioDataLoaded = false;
 
     Value lEP;  // left End Point for graphing interval in graphView
     Value rEP;  // right End Point for graphing interval in graphView
- 
+//    Value cycleRendered;  // set to 1 or true when cycle is rendered
+
+    
 private:
     
     enum TransportState
@@ -136,6 +138,8 @@ private:
     
     void openButtonClicked();
 
+    void closeButtonClicked();
+    
     void playButtonClicked();
     
     void stopButtonClicked();
@@ -148,6 +152,10 @@ private:
     
     void playCycleButtonClicked();
     
+    void computeModelButtonClicked();
+    
+    void playModelButtonClicked();
+    
     void readAudioData (File file);
 
     void readAudioData2 (AudioFormatReader *reader);
@@ -157,6 +165,12 @@ private:
     void setSplineArrays();
     
     void initSplineArrays();
+    
+    void fillBcoeffs();
+    
+    void writeWavFile();
+    
+    void writeModelToBuffer();
     
     struct fileheader
     {
@@ -178,6 +192,7 @@ private:
     //==========================================================================
 
     juce::TextButton openButton;
+    juce::TextButton closeButton;
     juce::TextButton playButton;
     juce::TextButton stopButton;
     juce::TextButton graphButton;
@@ -185,6 +200,8 @@ private:
     juce::TextButton targetButton;
     juce::TextButton selectCycleButton;
     juce::TextButton playCycleButton;
+    juce::TextButton computeModelButton;
+    juce::TextButton playModelButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
@@ -192,6 +209,8 @@ private:
     juce::Label  frequencyLabel;
     juce::Slider kValSlider;
     juce::Label  kValLabel;
+    juce::Slider mValSlider;
+    juce::Label  mValLabel;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -200,7 +219,10 @@ private:
     juce::AudioTransportSource transportSource;
     TransportState state;
     juce::AudioBuffer<float> floatBuffer;
+    juce::AudioBuffer<float> writeBuffer;
     juce::AudioFormatReader *reader;
+    juce::SoundPlayer player;
+    juce::AudioDeviceManager myADM;
     
     unsigned dataSize,          // size of data in bytes
              sampleRate,        // sample rate
@@ -215,21 +237,33 @@ private:
     float magfactor = 1;        // accumulate to give magnification
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
     int kVal = 20;              // k = number of subintervals for splines
+    int mVal = 20;               // m = multiple for key cycles (simple regular model)
+    int dVal = 3;               // d = degree for splines, default 3
     // zeros in audio data are computed based on linear interpolation between audio samples
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
-    Array<int> samplesPerCycle;  // number of samples in each cycle of audio sample
+    Array<int> samplesPerCycle; // number of samples in each cycle of audio sample until last zero
+    int lastSample;             // index of last sample = (int) lastZero
+    int numCycles;              // number of cycles computed, (int) (lengthInSeconds * freqGuess)
     int startIndex = 0;         // index of first cycle to graph
     int endIndex = 0;           // index of last cycle to graph
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;
     bool playCycleOn = false;
+    bool playModelOn = false;
+    bool playWavFileOn = false;
+    bool expCycleInterp = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
     double currentFrequency = 220.0, targetFrequency = 220.0;
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
-    juce::Array<float> controlCoeffs;
-    juce::Array<float> knotVals;
+    juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
+    juce::Array<float> knotVals;        // this only depends on k and d
+    File outputFile = File("~/output.wav");
+    
+//    juce::Array<float> controlCoeffs0;  // These are for triple-buffering so that AudioCallBack
+//    juce::Array<float> controlCoeffs1;  // can cycle through different sets of bcoeffs
+//    juce::Array<float> controlCoeffs2;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

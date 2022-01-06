@@ -12,6 +12,7 @@
 #include "zeros.h"
 #include "mat.h"
 #include "CycleSpline.h"
+#include "MetaSpline.h"
 
 // bsp.cpp
 // 
@@ -394,6 +395,60 @@ float bSplineVal(int k, int j, float t)
     return fval;
 }
 
+// compute the outputs of a meta-spline using DeBoor algorithm
+// assuming meta-spline has bcoeffs and targets (which are key cycle bcoeffs)
+void computeMetaSplineOutputs(MetaSpline& spline)
+{
+    int d = spline.d, n = spline.n,  N = n + d;  // k = n - d;
+    juce::Array<float> controlCoeffs;
+    for (int i=0; i<4*n; i++) {
+        controlCoeffs.add(0);
+    }
+    int i, h, J;  // J index in DeBoor Algorithm
+    int p;  // stage in DeBoor Algorithm
+    float denom, fac1, fac2, t, fval;
+    // numOutputs = number of outputs from meta-spline = numCycles
+
+    spline.outputs.clear();
+    int H = spline.numOutputs;
+    float incr = 1/((float)(H-1));
+
+    for (h=0; h<H; h++)  // loop on H uniformly distributed values in [0,1]
+    {
+        t = h * incr;  // t value in interval [0,1]
+        fval = 0.0f;
+        // set J value
+        for (i=1; i<N; i++)
+        {
+            if (t < spline.knots[i])
+            {
+              J = i-1;
+                if (J > n-1) {
+                    J = n-1;
+                }
+              break;
+            }
+        }
+        for (i=0; i<n; i++)
+        {
+            controlCoeffs.set(4*i+0, spline.bcoeffs[i]);
+        }
+        for (p=1; p<d+1; p++)
+        {
+            for (i=J-d+p; i<J+1; i++)
+            {
+              denom = (spline.knots[i+d-(p-1)]-spline.knots[i]);
+              fac1 = (t-spline.knots[i]) / denom;
+              fac2 = (spline.knots[i+d-(p-1)]-t) / denom;
+              controlCoeffs.set(4*i+p, fac1 * controlCoeffs[4*i+(p-1)]
+                  + fac2 * controlCoeffs[4*(i-1)+(p-1)]);
+            }
+        }
+        fval = controlCoeffs[4*J+d];
+        spline.outputs.set(h, fval);
+    }
+}
+
 // compute the outputs of a spline on one cycle using DeBoor algorithm
 void computeCycleSplineOutputs(CycleSpline& cycle)
 {
@@ -401,7 +456,7 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     int n = k + d;
     int N = n + d;
     juce::Array<float> controlCoeffs;
-    for (int i=0; i<(k+d)*(k+d); i++) {
+    for (int i=0; i<4*(k+d); i++) {
         controlCoeffs.add(0);
     }
     float incr = 1 / (float) k;
@@ -443,7 +498,7 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
         }
         for (i=0; i<d+k; i++)
         {
-            controlCoeffs.set((k+d)*i+0, cycle.bcoeffs[i]);
+            controlCoeffs.set(4*i+0, cycle.bcoeffs[i]);
         }
         for (p=1; p<d+1; p++)
         {
@@ -452,12 +507,63 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
               denom = (knotVals[i+d-(p-1)]-knotVals[i]);
               fac1 = (t-knotVals[i]) / denom;
               fac2 = (knotVals[i+d-(p-1)]-t) / denom;
-              controlCoeffs.set((k+d)*i+p, fac1 * controlCoeffs[(k+d)*i+(p-1)]
-                  + fac2 * controlCoeffs[(k+d)*(i-1)+(p-1)]);
+              controlCoeffs.set(4*i+p, fac1 * controlCoeffs[4*i+(p-1)]
+                  + fac2 * controlCoeffs[4*(i-1)+(p-1)]);
             }
         }
-        fval = controlCoeffs[(k+d)*J+d];
-        cycle.outputs.set(h-Imin, fval);
+        fval = controlCoeffs[4*J+d];
+        cycle.outputs.set(h-Imin, fval);  // outputs for int h = 0 to Imax-Imin
+    }
+}
+
+// computes the bcoeffs of meta-spline which will pass through the keycoeffs or targets
+// associated to one index i. Assumes all data in MetaSpline is set, incuding targets,
+// except for the bcoeffs.
+
+void computeMetaSplineBcoeffs(MetaSpline& spline)
+{
+    int n = spline.n, d = spline.d, k = n - d;
+
+    // Next, need to set up n by n linear system to solve for the meta-spline B-spline coefficients.
+    // Once we solve for the matrix inverse, then just multiply matrix * column vector
+    // (vector of target values which are keycoeffs of key cycles) to get coefficients.
+    // Each row of matrix corredsponds to plugging in one input, say s_i, and setting
+    // equal to target value, say y_i.  The function to solve for is a sum of Bsplines.
+    
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<n*n; i++) {
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            val = bSplineVal(k, j, spline.inputs[i]);  // A[i,j]
+            A.set(i*n+j, val);
+            temp.set(i*n+j, val);
+            B.set(i*n+j, 0);
+        }
+    }
+    for (int i=0; i<n; i++) {
+        B.set(i*n+i, 1.0);
+    }
+//    printMatrix(n, A);
+//    printMatrix(n, B);
+//    Now we need inverse of A, n x n, with n = k+d
+    gaussElim(n, temp, B);
+//    printMult(n, A, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    y = multMatCol(n, B, spline.targets);
+    for (int i=0; i<n; i++) {
+        spline.bcoeffs.set(i, y[i]);
     }
 }
 
@@ -558,7 +664,7 @@ void computeCycleBcoeffs(CycleSpline& cycle, AudioBuffer<float>& samples)
     }
 }
 
-void computeCycleBcoeffs2(CycleSpline& cycle, AudioBuffer<float>& samples)
+void computeCycleBcoeffsOld(CycleSpline& cycle, AudioBuffer<float>& samples)
 {
 //    from input cycle we get: k, d, and other data:
 //    int d;  // degree of B-splines, default d = 3

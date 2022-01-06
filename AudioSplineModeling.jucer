@@ -4,8 +4,6 @@
               addUsingNamespaceToJuceHeader="1" displaySplashScreen="0" jucerFormatVersion="1">
   <MAINGROUP id="Zdh1ZK" name="AudioSplineModeling">
     <GROUP id="{C393A6D9-2AB0-1997-B053-A01627D83C2B}" name="Source">
-      <FILE id="dgIs4u" name="Cycle.cpp" compile="1" resource="0" file="Source/Cycle.cpp"/>
-      <FILE id="ShNQ61" name="Cycle.h" compile="0" resource="0" file="Source/Cycle.h"/>
       <FILE id="nipMzM" name="zeros.cpp" compile="1" resource="0" file="Source/zeros.cpp"/>
       <FILE id="tUPubS" name="zeros.h" compile="0" resource="0" file="Source/zeros.h"/>
       <FILE id="blFN5d" name="mat.cpp" compile="1" resource="0" file="Source/mat.cpp"/>
@@ -23,6 +21,8 @@
             file="Source/MainContentComponent.h"/>
       <FILE id="iHVFFx" name="bsp.h" compile="0" resource="0" file="Source/bsp.h"/>
       <FILE id="ddqzNr" name="bsp.cpp" compile="1" resource="0" file="Source/bsp.cpp"/>
+      <FILE id="pcaJVL" name="MetaSpline.cpp" compile="1" resource="0" file="Source/MetaSpline.cpp"/>
+      <FILE id="ZWv2NL" name="MetaSpline.h" compile="0" resource="0" file="Source/MetaSpline.h"/>
     </GROUP>
   </MAINGROUP>
   <JUCEOPTIONS/>
