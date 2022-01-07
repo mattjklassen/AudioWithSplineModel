@@ -259,7 +259,9 @@ private:
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
     juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
     juce::Array<float> knotVals;        // this only depends on k and d
-    File outputFile = File("~/output.wav");
+//    File outputFile = File("~/output.wav");
+//    File outputFile = File::getSpecialLocation(File::currentExecutableFile).getParentDirectory().getChildFile("output.wav");
+    File outputFile = File::getSpecialLocation(File::userHomeDirectory).getChildFile("output.wav");
     
 //    juce::Array<float> controlCoeffs0;  // These are for triple-buffering so that AudioCallBack
 //    juce::Array<float> controlCoeffs1;  // can cycle through different sets of bcoeffs
