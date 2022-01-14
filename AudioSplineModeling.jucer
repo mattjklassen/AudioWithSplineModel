@@ -1,71 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="eSOTO4" name="AudioSplineModeling" projectType="guiapp" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="1" displaySplashScreen="0" jucerFormatVersion="1">
-  <MAINGROUP id="Zdh1ZK" name="AudioSplineModeling">
-    <GROUP id="{C393A6D9-2AB0-1997-B053-A01627D83C2B}" name="Source">
-      <FILE id="nipMzM" name="zeros.cpp" compile="1" resource="0" file="Source/zeros.cpp"/>
-      <FILE id="tUPubS" name="zeros.h" compile="0" resource="0" file="Source/zeros.h"/>
-      <FILE id="blFN5d" name="mat.cpp" compile="1" resource="0" file="Source/mat.cpp"/>
-      <FILE id="vvh35i" name="mat.h" compile="0" resource="0" file="Source/mat.h"/>
-      <FILE id="poEjIi" name="GraphComponent.cpp" compile="1" resource="0"
+<JUCERPROJECT name="AudioSplineModeling" companyName="JUCE" version="1.1.0"
+              userNotes="Plays audio files." companyWebsite="http://juce.com"
+              projectType="guiapp" useAppConfig="0" addUsingNamespaceToJuceHeader="1"
+              id="YDJpjK" jucerFormatVersion="1">
+  <MAINGROUP id="mM0A9o" name="AudioSplineModeling">
+    <GROUP id="{F24ADD0A-7CE6-82C4-AB15-3EAA624A0801}" name="Source">
+      <FILE id="X5M7ht" name="audioProc.cpp" compile="1" resource="0" file="Source/audioProc.cpp"/>
+      <FILE id="txtPbU" name="CycleInterp.cpp" compile="1" resource="0" file="Source/CycleInterp.cpp"/>
+      <FILE id="n6Ih35" name="ScrollBars.cpp" compile="1" resource="0" file="Source/ScrollBars.cpp"/>
+      <FILE id="DdnN2n" name="Sliders.cpp" compile="1" resource="0" file="Source/Sliders.cpp"/>
+      <FILE id="eWnlml" name="Buttons.cpp" compile="1" resource="0" file="Source/Buttons.cpp"/>
+      <FILE id="EQqDYm" name="MetaSpline.cpp" compile="1" resource="0" file="Source/MetaSpline.cpp"/>
+      <FILE id="PmLgjq" name="MetaSpline.h" compile="0" resource="0" file="Source/MetaSpline.h"/>
+      <FILE id="oNVRIV" name="GraphComponent.cpp" compile="1" resource="0"
             file="Source/GraphComponent.cpp"/>
-      <FILE id="O7bFZJ" name="GraphComponent.h" compile="0" resource="0"
+      <FILE id="xau4rC" name="GraphComponent.h" compile="0" resource="0"
             file="Source/GraphComponent.h"/>
-      <FILE id="HviKW5" name="CycleSpline.cpp" compile="1" resource="0" file="Source/CycleSpline.cpp"/>
-      <FILE id="jtsTxW" name="CycleSpline.h" compile="0" resource="0" file="Source/CycleSpline.h"/>
-      <FILE id="Gdvl1h" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
-      <FILE id="sTxpPY" name="MainContentComponent.cpp" compile="1" resource="0"
-            file="Source/MainContentComponent.cpp"/>
-      <FILE id="Ds25BK" name="MainContentComponent.h" compile="0" resource="0"
+      <FILE id="hLeKkP" name="CycleSpline.cpp" compile="1" resource="0" file="Source/CycleSpline.cpp"/>
+      <FILE id="gE3iT1" name="CycleSpline.h" compile="0" resource="0" file="Source/CycleSpline.h"/>
+      <FILE id="teUiFz" name="mat.cpp" compile="1" resource="0" file="Source/mat.cpp"/>
+      <FILE id="eT6VcI" name="mat.h" compile="0" resource="0" file="Source/mat.h"/>
+      <FILE id="S409kV" name="bsp.h" compile="0" resource="0" file="Source/bsp.h"/>
+      <FILE id="YZgowE" name="bsp.cpp" compile="1" resource="0" file="Source/bsp.cpp"/>
+      <FILE id="tmQjpY" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="Z1pQM0" name="MainContentComponent.h" compile="0" resource="0"
             file="Source/MainContentComponent.h"/>
-      <FILE id="iHVFFx" name="bsp.h" compile="0" resource="0" file="Source/bsp.h"/>
-      <FILE id="ddqzNr" name="bsp.cpp" compile="1" resource="0" file="Source/bsp.cpp"/>
-      <FILE id="pcaJVL" name="MetaSpline.cpp" compile="1" resource="0" file="Source/MetaSpline.cpp"/>
-      <FILE id="ZWv2NL" name="MetaSpline.h" compile="0" resource="0" file="Source/MetaSpline.h"/>
+      <FILE id="fuAztI" name="MainContentComponent.cpp" compile="1" resource="0"
+            file="Source/MainContentComponent.cpp"/>
+      <FILE id="gItMEF" name="zeros.h" compile="0" resource="0" file="Source/zeros.h"/>
+      <FILE id="HwDI98" name="zeros.cpp" compile="1" resource="0" file="Source/zeros.cpp"/>
     </GROUP>
   </MAINGROUP>
-  <JUCEOPTIONS/>
-  <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="AudioSplineModeling"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="AudioSplineModeling"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../../modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../modules"/>
-        <MODULEPATH id="juce_core" path="../../modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../modules"/>
-        <MODULEPATH id="juce_events" path="../../modules"/>
-        <MODULEPATH id="juce_graphics" path="../../modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../modules"/>
-      </MODULEPATHS>
-    </XCODE_MAC>
-    <VS2019 targetFolder="Builds/VisualStudio2019">
-      <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug"/>
-        <CONFIGURATION isDebug="0" name="Release"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra"/>
-        <MODULEPATH id="juce_gui_basics"/>
-        <MODULEPATH id="juce_graphics"/>
-        <MODULEPATH id="juce_events"/>
-        <MODULEPATH id="juce_data_structures"/>
-        <MODULEPATH id="juce_core"/>
-        <MODULEPATH id="juce_audio_utils"/>
-        <MODULEPATH id="juce_audio_processors"/>
-        <MODULEPATH id="juce_audio_formats"/>
-        <MODULEPATH id="juce_audio_devices"/>
-        <MODULEPATH id="juce_audio_basics"/>
-      </MODULEPATHS>
-    </VS2019>
-  </EXPORTFORMATS>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -79,4 +45,64 @@
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="PlayingSoundFilesTutorial"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="PlayingSoundFilesTutorial"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path=""/>
+        <MODULEPATH id="juce_audio_devices" path=""/>
+        <MODULEPATH id="juce_audio_formats" path=""/>
+        <MODULEPATH id="juce_audio_processors" path=""/>
+        <MODULEPATH id="juce_audio_utils" path=""/>
+        <MODULEPATH id="juce_core" path=""/>
+        <MODULEPATH id="juce_data_structures" path=""/>
+        <MODULEPATH id="juce_events" path=""/>
+        <MODULEPATH id="juce_graphics" path=""/>
+        <MODULEPATH id="juce_gui_basics" path=""/>
+        <MODULEPATH id="juce_gui_extra" path=""/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+    <VS2019 targetFolder="Builds/VisualStudio2019">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="PlayingSoundFilesTutorial"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="PlayingSoundFilesTutorial"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path=""/>
+        <MODULEPATH id="juce_audio_devices" path=""/>
+        <MODULEPATH id="juce_audio_formats" path=""/>
+        <MODULEPATH id="juce_audio_processors" path=""/>
+        <MODULEPATH id="juce_audio_utils" path=""/>
+        <MODULEPATH id="juce_core" path=""/>
+        <MODULEPATH id="juce_data_structures" path=""/>
+        <MODULEPATH id="juce_events" path=""/>
+        <MODULEPATH id="juce_graphics" path=""/>
+        <MODULEPATH id="juce_gui_basics" path=""/>
+        <MODULEPATH id="juce_gui_extra" path=""/>
+      </MODULEPATHS>
+    </VS2019>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="PlayingSoundFilesTutorial"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="PlayingSoundFilesTutorial"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path=""/>
+        <MODULEPATH id="juce_audio_devices" path=""/>
+        <MODULEPATH id="juce_audio_formats" path=""/>
+        <MODULEPATH id="juce_audio_processors" path=""/>
+        <MODULEPATH id="juce_audio_utils" path=""/>
+        <MODULEPATH id="juce_core" path=""/>
+        <MODULEPATH id="juce_data_structures" path=""/>
+        <MODULEPATH id="juce_events" path=""/>
+        <MODULEPATH id="juce_graphics" path=""/>
+        <MODULEPATH id="juce_gui_basics" path=""/>
+        <MODULEPATH id="juce_gui_extra" path=""/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
+  </EXPORTFORMATS>
+  <JUCEOPTIONS/>
 </JUCERPROJECT>

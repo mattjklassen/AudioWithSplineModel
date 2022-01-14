@@ -217,7 +217,7 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
     int J = 0;  // for loop on Periods
     float zero0, zero1;
     
-    for (J=1; J<Periods+1; J++)
+    for (J=1; J<Periods+10; J++)
     {
         while (Guess > allZeros[i])
         {
@@ -239,7 +239,10 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
           //   << setw(6) << setprecision(2) << SPP[J] << endl;
         Guess = cycleZeros[J] + Spp;
         if (Guess > LastZero) {
-            cycleZeros.add(LastZero);
+            DBG("Guess " << Guess << " is > LastZero " << LastZero);
+//            cycleZeros.add(LastZero);
+            DBG("J: " << J << "  cycZeros.size(): " << cycleZeros.size());
+            DBG("last cycleZero: " << cycleZeros[cycleZeros.size()-1]);
             break;
         }
     } // end for J

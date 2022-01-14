@@ -19,7 +19,7 @@ public:
     // so it is used to generate missing values of that bcoeff at the non-key cycles
     int d;  // degree of (meta) B-splines, default d = 3
     // k=n-d  // number of subintervals, dim n=k+3 = # key cycles, so k=n-3
-    int n;  // number of key cycles
+    int n;  // number of key cycles, ie. size of array keys
     int m;  // indices of key cycles are j*m, j=0...n-1
     int numOutputs;  // should be equal to numCycles
     float a, b; // for interval [a,b], default to [0,1]

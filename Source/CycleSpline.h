@@ -20,6 +20,7 @@ public:
     int d;  // degree of B-splines, default d = 3
     int k; // number of subintervals, can vary, use default 20
     float a, b; // for interval [a,b] on time axis, a = left end point, b = right end point
+    float maxVal, maxIndex;  // maxVal is max abs value of outputs, which occurs at maxIndex
     Array<float> subintervals;  // default subinterval size = (b-a)/k, endpoints: u_0,...,u_k (k+1 values)
     Array<float> inputs; // default at a, b, and subinterval breakpoints, and midpoints of outer two subintervals
     Array<float> outputs;  // output values computed from B-spline basis with DeBoor algorithm

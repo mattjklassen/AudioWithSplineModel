@@ -17,12 +17,20 @@
 void GraphComponent::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colours::lightgrey);
-    g.setColour (juce::Colours::blue);
+    g.setColour (juce::Colours::darkgrey);
     w = getWidth();
     h = getHeight();
     
     drawGraphBox(g, w, h);
-    
+    g.setColour (juce::Colours::blue);
+    if (graphMetaSplinesOn) {
+//        graphMetaSplines(g);
+        graphLinearMetaSplines(g);
+        if (plotTargets) {
+            plotMetaSplineTargets(g);
+        }
+        return;
+    }
     if (updateGraph) {
         graphSignal(g);
     }
@@ -38,6 +46,12 @@ void GraphComponent::paint (juce::Graphics& g)
     if (plotTargets) {
         plotTargetPoints(g, cycleToGraph);
     }
+}
+
+void GraphComponent::reset()
+{
+    leftEndPoint = 0;
+    rightEndPoint = 1000;
 }
 
 void GraphComponent::drawGraphBox(juce::Graphics& g, float w, float h)
@@ -100,6 +114,11 @@ void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _aud
     kVal = _kVal;
 }
 
+void GraphComponent::setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray)
+{
+    metaSplineArray = _metaSplineArray;
+}
+
 void GraphComponent::setkVal(int _kVal)
 {
     kVal = _kVal;
@@ -110,12 +129,14 @@ void GraphComponent::setmVal(int _mVal)
     mVal = _mVal;
 }
 
-void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess)
+void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess, Array<float>& _maxSampleIndices, Array<float>& _maxSampleValues)
 {
     cycleZeros = _cycleZeros;
     allZeros = _allZeros;
     samplesPerCycle = _samplesPerCycle;
     freqGuess = _freqGuess;
+    maxSampleIndices = _maxSampleIndices;
+    maxSampleValues = _maxSampleValues;
     
 //    DBG("zeros are set");
 //    for (int i = 0; i<10; i++) {
@@ -202,6 +223,77 @@ void GraphComponent::graphSignal(juce::Graphics& g)
     float myThickness = 1;
     juce::PathStrokeType myType = PathStrokeType(myThickness);
     g.setColour (juce::Colours::darkgrey);
+    g.strokePath (graph, myType);
+}
+
+void GraphComponent::graphLinearMetaSplines(juce::Graphics& g)
+{
+    MetaSpline spline = metaSplineArray[metaSplineIndex];
+    float incr = 1 / (float)spline.outputs.size();
+    leftEndPoint = 0;
+    rightEndPoint = 1;
+
+    // graph meta-spline from 0 to 1 using piecewise linear path between outputs
+    juce::Path graph;
+    juce::Point<float> P_0(0,spline.outputs[0]);
+    P_0 = signalToScreenCoords(P_0);
+    graph.startNewSubPath (P_0);
+    float x, y;
+    for (int i=1; i<spline.outputs.size(); i++) {
+        x = (float)i * incr;
+        y = spline.outputs[i];
+        juce::Point<float> P(x,y);
+        P = signalToScreenCoords(P);
+        graph.lineTo(P);
+    }
+//    juce::Point<float> P_1(1,spline.value(1));
+//    P_1 = signalToScreenCoords(P_1);
+//    graph.lineTo(P_1);
+    float myThickness = 1;
+    juce::PathStrokeType myType = PathStrokeType(myThickness);
+    g.setColour (juce::Colours::blue);
+    g.strokePath (graph, myType);
+}
+
+void GraphComponent::graphMetaSplines(juce::Graphics& g)
+{
+    MetaSpline spline = metaSplineArray[metaSplineIndex];
+//    int n = spline.n;
+    float incr = 0.001;
+    leftEndPoint = 0;
+    rightEndPoint = 1;
+    // find max value of spline to normalize
+    float max = 0;
+    for (int j=0; j<1001; j++) {
+        float val = abs(spline.value(j * incr));
+        if (val > max) {
+            max = val;
+        }
+    }
+    float scale = 1;
+    if (max > 1) {
+        scale = 1 / max;
+    }
+    metaSplineFactor = scale;
+    // graph meta-spline from 0 to 1 using spline.value
+    juce::Path graph;
+    juce::Point<float> P_0(0,spline.value(0));
+    P_0 = signalToScreenCoords(P_0);
+    graph.startNewSubPath (P_0);
+    float x, y;
+    for (int i=0; i<1001; i++) {
+        x = (float)i * incr;
+        y = scale * spline.value(x);
+        juce::Point<float> P(x,y);
+        P = signalToScreenCoords(P);
+        graph.lineTo(P);
+    }
+    juce::Point<float> P_1(1,spline.value(1));
+    P_1 = signalToScreenCoords(P_1);
+    graph.lineTo(P_1);
+    float myThickness = 1;
+    juce::PathStrokeType myType = PathStrokeType(myThickness);
+    g.setColour (juce::Colours::blue);
     g.strokePath (graph, myType);
 }
 
@@ -401,27 +493,51 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
         float a = cycleZeros[n];
         float b = cycleZeros[n+1];
         cycleToGraph = CycleSpline(kVal, a, b);
-        DBG("selected cycle: " << n << "  a = " << a << "  b = " << b << " k = " << kVal);
+//        DBG("selected cycle: " << n << "  a = " << a << "  b = " << b << " k = " << kVal);
         computeCycleBcoeffs(cycleToGraph, floatBuffer);
         computeCycleSplineOutputs(cycleToGraph);
-        cycleToGraph.printData();
+//        cycleToGraph.printData();
         graphSplineCycle = true;
-        
-        int j = 20;
+//        DBG("max index: " << maxSampleIndices[n]);
+//        DBG("max value: " << maxSampleValues[n]);
+
         cycles[0] = cycleToGraph;
-        int m = n + j;
-        a = cycleZeros[m];
-        b = cycleZeros[m+1];
-        cycles[1] = CycleSpline(kVal, a, b);
-        computeCycleBcoeffs(cycles[1], floatBuffer);
-        m = m + j;
-        a = cycleZeros[m];
-        b = cycleZeros[m+1];
-        cycles[2] = CycleSpline(kVal, a, b);
-        computeCycleBcoeffs(cycles[2], floatBuffer);
+        
+        // below was setup for rendering cycles continuously as cycles[i] i=0,1,2
+        // with the idea of modifying one cycle as another is playing
+//        int j = 1;
+//        int m = n + j;
+//        a = cycleZeros[m];
+//        b = cycleZeros[m+1];
+//        cycles[1] = CycleSpline(kVal, a, b);
+//        computeCycleBcoeffs(cycles[1], floatBuffer);
+//        m = m + j;
+//        a = cycleZeros[m];
+//        b = cycleZeros[m+1];
+//        cycles[2] = CycleSpline(kVal, a, b);
+//        computeCycleBcoeffs(cycles[2], floatBuffer);
         
 //        cyclesToPlay.add(cycleToGraph);
 //        DBG("added selected cycle to cyclesToPlay");
+    }
+    repaint();
+}
+
+
+void GraphComponent::plotMetaSplineTargets(juce::Graphics& g)
+{
+    MetaSpline spline = metaSplineArray[metaSplineIndex];
+    leftEndPoint = 0;
+    rightEndPoint = 1;
+    juce::Point<float> P;
+    juce::Point<float> Q;
+    g.setColour (juce::Colours::red);
+    int n = spline.n;
+    for (int i=0; i<n; i++) {
+        P.setX(spline.inputs[i]);
+        P.setY(spline.targets[i] * metaSplineFactor);
+        Q = signalToScreenCoords(P);
+        drawDot(Q, g);
     }
     repaint();
 }

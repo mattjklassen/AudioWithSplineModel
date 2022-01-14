@@ -395,6 +395,28 @@ float bSplineVal(int k, int j, float t)
     return fval;
 }
 
+// use piecewise linear graph between targets to compute outputs
+// no bcoeffs are necessary here, just targets and outputs.size
+void computeLinearMetaSplineOutputs(MetaSpline& spline)
+{
+    int P = spline.outputs.size();
+    float incr = 1 / (float)P;
+    spline.outputs.set(0, spline.targets[0]);
+    float t = 0, y = 0;
+    int j = 0;
+    for (int i=1; i<spline.outputs.size(); i++) {
+        t = incr * i;
+        j = 0;
+        while(t > spline.inputs[j]) {
+            j += 1;
+        } // linear interp between targets[j-1] and targets[j]:
+        float t0 = spline.inputs[j-1], t1 = spline.inputs[j];
+        float y0 = spline.targets[j-1], y1 = spline.targets[j];
+        y = (t-t0)/(t1-t0) * y1 + (t1-t)/(t1-t0) * y0;
+        spline.outputs.set(i, y);
+    }
+}
+
 // compute the outputs of a meta-spline using DeBoor algorithm
 // assuming meta-spline has bcoeffs and targets (which are key cycle bcoeffs)
 void computeMetaSplineOutputs(MetaSpline& spline)
@@ -468,6 +490,8 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     int i, h, J;  // J index in DeBoor Algorithm
     int p;  // stage in DeBoor Algorithm
     float length = b - a;
+    float max = 0;
+    int maxI = 0;
     int numSamples = (int) b - (int) a;
     float denom, fac1, fac2, t, fval;
     int Imin = (int)ceil(a);       // first sample index
@@ -512,23 +536,33 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
             }
         }
         fval = controlCoeffs[4*J+d];
+        if (abs(fval) > max) {
+            max = abs(fval);
+            maxI = h-Imin;
+        }
         cycle.outputs.set(h-Imin, fval);  // outputs for int h = 0 to Imax-Imin
     }
+    cycle.maxVal = max;
+    cycle.maxIndex = maxI;
 }
 
 // computes the bcoeffs of meta-spline which will pass through the keycoeffs or targets
-// associated to one index i. Assumes all data in MetaSpline is set, incuding targets,
-// except for the bcoeffs.
+// associated to one index i. Assumes all data in MetaSpline is set, including targets,
+// except for the bcoeffs (and of course the outputs)
 
 void computeMetaSplineBcoeffs(MetaSpline& spline)
 {
     int n = spline.n, d = spline.d, k = n - d;
 
-    // Next, need to set up n by n linear system to solve for the meta-spline B-spline coefficients.
+    // Set up n by n linear system to solve for the meta-spline B-spline coefficients.
+    // As of 1/13/22 we are changing meta-splines to be natural cubic splines.
     // Once we solve for the matrix inverse, then just multiply matrix * column vector
-    // (vector of target values which are keycoeffs of key cycles) to get coefficients.
+    // (vector of target values which are keycoeffs of key cycles, and also 2 zeros)
+    // The 2 zeros come from the natural cubic spline conditions, which for B-spline coeffs
+    // are given as: c(0)-2*c(1)+c(2)=0 and c(n-3)-2*c(n-2)+c(n-1)=0
     // Each row of matrix corredsponds to plugging in one input, say s_i, and setting
-    // equal to target value, say y_i.  The function to solve for is a sum of Bsplines.
+    // equal to target value, say y_i, or a second derivative at the ends = 0.
+    // The function to solve for is a sum of Bsplines.
     
     float val = 0;
     juce::Array<float> A;
@@ -539,14 +573,31 @@ void computeMetaSplineBcoeffs(MetaSpline& spline)
         B.add(0);
         temp.add(0);
     }
-    for (int i=0; i<n; i++) {
+    // spline collocation matrix, up to last two rows
+    for (int i=0; i<n-2; i++) {
         for (int j=0; j<n; j++) {
             val = bSplineVal(k, j, spline.inputs[i]);  // A[i,j]
             A.set(i*n+j, val);
             temp.set(i*n+j, val);
-            B.set(i*n+j, 0);
+//            B.set(i*n+j, 0);
         }
     }
+    // set last two rows according to second derivative = 0 at ends
+    int i = n-2;
+    int j = 0;
+    A.set(i*n+j, 1);
+    j = 1;
+    A.set(i*n+j, -2);
+    j = 2;
+    A.set(i*n+j, 1);
+    i = n-1;
+    j = n-3;
+    A.set(i*n+j, 1);
+    j = n-2;
+    A.set(i*n+j, -2);
+    j = n-1;
+    A.set(i*n+j, 1);
+    // set matrix B as identity
     for (int i=0; i<n; i++) {
         B.set(i*n+i, 1.0);
     }

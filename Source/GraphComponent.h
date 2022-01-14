@@ -14,6 +14,7 @@
 #include <string>
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "CycleSpline.h"
+#include "MetaSpline.h"
 #include "bsp.h"
 
 
@@ -29,7 +30,9 @@ public:
     
     void setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _audioLoaded, int _numSamples, float _magnify, float _leftEndPoint, float _rightEndPoint, unsigned _sampleCount, unsigned sampleRate, int kVal);
     
-    void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess);
+    void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess, Array<float>& _maxSampleIndices, Array<float>& _maxSampleValues);
+    
+    void setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray);
     
     void setkVal(int _kVal);
     void setmVal(int _mVal);
@@ -40,6 +43,7 @@ public:
     bool cyclesToGraph = false;
     bool callShadeCycles = false;
     bool graphSplineCycle = false;
+    bool graphMetaSplinesOn = false;
     bool plotTargets = false;
     bool hardLeft = true;
     int numSamples = 1000;
@@ -56,12 +60,15 @@ public:
     float magfactor = 1;
     int startIndex = 0;
     int endIndex = 0;
+    int metaSplineIndex = 0;
     int highlightCycle = -1;  // positive number is cycle to highlight
     juce::Colour highlightColour;
     Array<juce::Colour> cycleColours;
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
-    Array<int> samplesPerCycle; 
+    Array<int> samplesPerCycle;
+    Array<float> maxSampleIndices;
+    Array<float> maxSampleValues;
     Value leftEP;
     Value rightEP;
     Value dragged;
@@ -77,12 +84,22 @@ public:
     void paint (juce::Graphics& g) override;
 
     void resized() override;
+    
+    void graphMetaSplines(juce::Graphics& g);
+    
+    void graphLinearMetaSplines(juce::Graphics& g);
 
     CycleSpline cycleToGraph = CycleSpline(20, 0, 1);
     
 //    Array<CycleSpline> cyclesToPlay;
     
+    Array<MetaSpline> metaSplineArray;
+    
     CycleSpline cycles[3];
+    
+    void reset();
+    
+    float metaSplineFactor = 1;
     
 private:
     
@@ -117,6 +134,8 @@ private:
     int getCycleNumber(float t);
     
     void plotTargetPoints(juce::Graphics& g, CycleSpline& cycle);
+
+    void plotMetaSplineTargets(juce::Graphics& g);
 
         
     //==============================================================================

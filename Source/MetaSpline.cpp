@@ -22,7 +22,8 @@ MetaSpline::MetaSpline(int _n, int _m)
     d = 3; n = _n; a = 0; b = 1; m = _m;
     int k = n - d;
     float incr = 1 / (float)k;
-    //  n = k + d;  // dimension of splines, also number of inputs
+    //  n = dimension of splines, also number of inputs plus 2 (for natural cubic splines)
+    //  inputs.size() = targets.size() = keys.size() = n-2
     int N = n + d;  // last index of knot sequence t_0,...,t_N
     
     subintervals.add(0);
@@ -30,16 +31,8 @@ MetaSpline::MetaSpline(int _n, int _m)
     {
         subintervals.add(subintervals[i-1] + incr);
     }
-    // now there are k subintervals inside interval [0,1]
+    // now there are k subintervals for the interval [0,1]
     
-    inputs.add(0);
-    incr = 1 / (float)(n-1);
-    for (int i=1; i<n; i++)
-    {
-        inputs.add(inputs[i-1] + incr);
-    }
-    // now there are n inputs uniformly in interval [0,1] (as opposed to CycleSpline inputs)
-
     knots.add( - d * incr);
     for (int i=1; i<N+1; i++)
     {
@@ -47,9 +40,19 @@ MetaSpline::MetaSpline(int _n, int _m)
     }
     // this is a simple uniform knot sequence
     
+    // changing inputs to be suitable for natural cubic spline, ie. n-2=k+1 of them
+    // inputs: 0,1/k,2/k,...,1
+    inputs.add(0);
+    for (int i=1; i<k+1; i++)
+    {
+        inputs.add(inputs[i-1] + incr);
+    }
+    // k+1=n-2 inputs are uniformly spaced in interval [0,1]
+    
     for (int i=0; i<n; i++)
     {
         bcoeffs.add(0);
+        targets.add(0);
     }
 }
 
@@ -76,17 +79,19 @@ MetaSpline::MetaSpline(int _n, int _m, int _numOutputs)
     }
     // this is simple uniform knot sequence
     
+    // changing inputs to be suitable for natural cubic spline, ie. n-2=k+1 of them
+    // inputs: 0,1/k,2/k,...,1
     inputs.add(0);
-    incr = 1 / (float)(n-1);
-    for (int i=1; i<n; i++)
+    for (int i=1; i<k+1; i++)
     {
         inputs.add(inputs[i-1] + incr);
     }
-    // now there are n inputs uniformly in interval [0,1] (unlike CycleSpline inputs)
-
+    // k+1=n-2 inputs are uniformly spaced in interval [0,1]
+    
     for (int i=0; i<n; i++)
     {
         bcoeffs.add(0);
+        targets.add(0);
     }
     
     for (int i=0; i<numOutputs; i++)
@@ -100,9 +105,9 @@ MetaSpline:: ~MetaSpline ()
     
 }
 
-float MetaSpline::value(float t)
+float MetaSpline::value(float t)  // assumes we have bcoeffs
 {
-    // assume t is in [0,1],
+    // assume t is in [0,1], 
     float output = 0;
     int J = 0;
     int k = n - d;  // n = dimension of splines, also number of inputs
@@ -186,4 +191,3 @@ void MetaSpline::printData()
         }
     }
 }
-

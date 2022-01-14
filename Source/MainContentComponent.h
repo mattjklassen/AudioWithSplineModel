@@ -80,7 +80,9 @@ public:
     {
         transportSource.releaseResources();
     }
-
+                    
+    bool keyStateChanged(bool isKeyDown) override;
+    
     void resized() override;
 
     void changeListenerCallback (juce::ChangeBroadcaster* source) override;
@@ -156,6 +158,10 @@ private:
     
     void playModelButtonClicked();
     
+    void playCycleWithEnvButtonClicked();
+    
+    void graphMetaSplinesButtonClicked();
+    
     void readAudioData (File file);
 
     void readAudioData2 (AudioFormatReader *reader);
@@ -163,14 +169,42 @@ private:
     void updateAngleDelta();
     
     void setSplineArrays();
-    
-    void initSplineArrays();
-    
+
     void fillBcoeffs();
     
     void writeWavFile();
     
     void writeModelToBuffer();
+    
+    void writeCycleInterpModelToBuffer();
+    
+    void modelWithoutCycleInterp();
+    
+    void writeKeyCyclesToBuffer();
+    
+    void writeCycleWithEnvToBuffer();
+    
+    void computeCycleWithEnv();
+    
+    void computeMetaSplines();
+    
+    void setKeyCycles();
+    
+    void computeKeyCycles();
+    
+    void computeNonKeyCycles();
+    
+    void computeAllCycles();
+    
+    bool isKey(int i);
+        
+    void findMaxValuesPerCycle(Array<float>&  maxSampleIndices, Array<float>&  maxSampleValues, Array<float>& cycleZeros, AudioBuffer<float>& samples);
+   
+    void addButtons();
+    
+    void addSliders();
+    
+    void addScrollbar();
     
     struct fileheader
     {
@@ -202,6 +236,8 @@ private:
     juce::TextButton playCycleButton;
     juce::TextButton computeModelButton;
     juce::TextButton playModelButton;
+    juce::TextButton playCycleWithEnvButton;
+    juce::TextButton graphMetaSplinesButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
@@ -236,13 +272,18 @@ private:
     float magnify = 1;          // to scale the size of Interval
     float magfactor = 1;        // accumulate to give magnification
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
-    int kVal = 20;              // k = number of subintervals for splines
+    int kVal = 50;              // k = number of subintervals for splines
     int mVal = 20;               // m = multiple for key cycles (simple regular model)
     int dVal = 3;               // d = degree for splines, default 3
     // zeros in audio data are computed based on linear interpolation between audio samples
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
+    Array<float> keyBcoeffs;
     Array<int> samplesPerCycle; // number of samples in each cycle of audio sample until last zero
+    Array<int> keys;
+    Array<MetaSpline> metaSplineArray;
+    Array<float> maxSampleIndices;  // per cycle, sample index for max abs value
+    Array<float> maxSampleValues;   // per cycle, abs max value at sample
     int lastSample;             // index of last sample = (int) lastZero
     int numCycles;              // number of cycles computed, (int) (lengthInSeconds * freqGuess)
     int startIndex = 0;         // index of first cycle to graph
@@ -254,13 +295,17 @@ private:
     bool playModelOn = false;
     bool playWavFileOn = false;
     bool expCycleInterp = false;
+    bool noCycleInterp = false;
+    bool regularCycleInterp = false;
+    bool interpMagnitude = false;
+    bool keysWithoutCycleInterp = false;
+    bool oneCycleWithEnvelope = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
     double currentFrequency = 220.0, targetFrequency = 220.0;
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
     juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
     juce::Array<float> knotVals;        // this only depends on k and d
 //    File outputFile = File("~/output.wav");
-//    File outputFile = File::getSpecialLocation(File::currentExecutableFile).getParentDirectory().getChildFile("output.wav");
     File outputFile = File::getSpecialLocation(File::userHomeDirectory).getChildFile("output.wav");
     
 //    juce::Array<float> controlCoeffs0;  // These are for triple-buffering so that AudioCallBack
