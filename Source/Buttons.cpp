@@ -100,7 +100,7 @@ void MainContentComponent::addButtons()
     playCycleButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
 
     addAndMakeVisible (&playCycleWithEnvButton);
-    playCycleWithEnvButton.setButtonText ("Play Cycle with Env");
+    playCycleWithEnvButton.setButtonText ("Play Cycle Env");
     playCycleWithEnvButton.onClick = [this] { playCycleWithEnvButtonClicked(); };
     playCycleWithEnvButton.setColour (juce::TextButton::buttonColourId, buttonColours[4]);
 
@@ -113,6 +113,79 @@ void MainContentComponent::addButtons()
     computeModelButton.setButtonText ("Compute Model");
     computeModelButton.onClick = [this] { computeModelButtonClicked(); };
     computeModelButton.setColour (juce::TextButton::buttonColourId, buttonColours[2]);
+
+    addAndMakeVisible (&graphModelButton);
+    graphModelButton.setButtonText ("Graph Model");
+    graphModelButton.setColour (juce::TextButton::buttonColourId, buttonColours[0]);
+    graphModelButton.onClick = [this] { graphModelButtonClicked(); };
+
+    addAndMakeVisible (&normalizeCycleLengthButton);
+    normalizeCycleLengthButton.setButtonText ("Normalize Cycle Length");
+    normalizeCycleLengthButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
+    normalizeCycleLengthButton.onClick = [this] { normalizeCycleLengthButtonClicked(); };
+    normalizeCycleLengthButton.changeWidthToFitText();
+    
+//    addAndMakeVisible (&randomizeButton);
+//    randomizeButton.setButtonText ("Randomize");
+//    randomizeButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
+//    randomizeButton.onClick = [this] { randomizeButtonClicked(); };
+//    randomizeButton.changeWidthToFitText();
+    
+    addAndMakeVisible (interpSelector);
+    interpSelector.addItem ("Regular Cycle Interp",  1);
+    interpSelector.addItem ("Exponential Cycle Interp",   2);
+    interpSelector.addItem ("No Cycle Interp", 3);
+    interpSelector.addItem ("Fibonacci Cycle Interp", 4);
+    interpSelector.addItem ("Ends Only Cycle Interp", 5);
+    interpSelector.setColour (juce::ComboBox::backgroundColourId, buttonColours[3]);
+    interpSelector.onChange = [this] { interpSelectionChanged(); };
+    interpSelector.setSelectedId (1);
+    
+    setSize (400, 200);
+}
+
+void MainContentComponent::interpSelectionChanged()
+{
+    switch (interpSelector.getSelectedId())
+    {
+        case 1: regularCycleInterp = true;
+                expCycleInterp = false;
+                noCycleInterp = false;
+                fibonacciCycleInterp = false;
+                endsOnlyCycleInterp = false;
+                break;
+        case 2: expCycleInterp = true;
+                regularCycleInterp = false;
+                noCycleInterp = false;
+                fibonacciCycleInterp = false;
+                endsOnlyCycleInterp = false;
+                break;
+        case 3: noCycleInterp = true;
+                expCycleInterp = false;
+                regularCycleInterp = false;
+                fibonacciCycleInterp = false;
+                endsOnlyCycleInterp = false;
+                break;
+        case 4: fibonacciCycleInterp = true;
+                expCycleInterp = false;
+                noCycleInterp = false;
+                regularCycleInterp = false;
+                endsOnlyCycleInterp = false;
+                break;
+        case 5: endsOnlyCycleInterp = true;
+                expCycleInterp = false;
+                noCycleInterp = false;
+                regularCycleInterp = false;
+                fibonacciCycleInterp = false;
+                break;
+        default: regularCycleInterp = true;
+                expCycleInterp = false;
+                noCycleInterp = false;
+                fibonacciCycleInterp = false;
+                endsOnlyCycleInterp = false;
+                break;
+    }
+
 }
 
 void MainContentComponent::setButtonColours()
@@ -210,13 +283,10 @@ void MainContentComponent::closeButtonClicked()
 
 void MainContentComponent::computeModelButtonClicked()
 {
-    if (mVal > 1) {
-        noCycleInterp = false;
-        regularCycleInterp = true;
-    }
     writeModelToBuffer();
-//    writeCycleInterpModelToBuffer();
     DBG("spline model computed");
+    graphView.modelLoaded = true;
+    graphView.setModelForGraph(writeBuffer);
     writeWavFile();
     DBG("output.wav written");
 }
@@ -229,21 +299,21 @@ void MainContentComponent::playModelButtonClicked()
 
 void MainContentComponent::playCycleButtonClicked()
 {
+    if (graphView.highlightCycle == -1) {
+        return;
+    }
     playWavFileOn = false;
     playModelOn = false;
     oneCycleWithEnvelope = false;
     setSplineArrays();
+    samplesPerSelectedCycle = graphView.cycleToGraph.outputs.size();
     // toggle playing of selected cycle on/off
     if (playCycleOn) {
         playCycleOn = false;
-//        DBG("set playCycleOn = false");
+        DBG("set playCycleOn = false");
     } else {
         playCycleOn = true;
-//        DBG("set playCycleOn = true");
-//        DBG("controlCoeffs: ");
-//        for (int i=0; i<controlCoeffs.size(); i++) {
-//            DBG(controlCoeffs[i]);
-//        }
+        DBG("set playCycleOn = true");
     }
     prepareToPlay(512, sampleRate);
 }
@@ -265,4 +335,40 @@ void MainContentComponent::graphMetaSplinesButtonClicked()
     graphView.graphMetaSplinesOn = true;
     graphView.plotTargets = true;
     graphView.repaint();
+}
+
+void MainContentComponent::graphModelButtonClicked()
+{
+    graphView.graphMetaSplinesOn = false;
+    if (graphView.modelLoaded) {
+        if (graphView.updateModelGraph) {
+            graphView.updateModelGraph = false;
+        } else {
+            graphView.updateModelGraph = true;
+        }
+    }
+    graphView.repaint();
+}
+
+void MainContentComponent::normalizeCycleLengthButtonClicked()
+{
+    if (normalizeCycleLengthButton.getToggleState()) {
+        normalizeCycleLength = true;
+        DBG("normalizeCycleLength is now: true");
+    } else {
+        normalizeCycleLength = false;
+        DBG("normalizeCycleLength is now: false");
+    }
+    graphView.repaint();
+}
+
+void MainContentComponent::randomizeButtonClicked()
+{
+    if (randomizeButton.getToggleState()) {
+        randomizeBcoeffs = true;
+        DBG("randomizeBcoeffs is now: true");
+    } else {
+        randomizeBcoeffs = false;
+        DBG("randomizeBcoeffs is now: false");
+    }
 }

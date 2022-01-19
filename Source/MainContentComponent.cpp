@@ -63,6 +63,10 @@ void MainContentComponent::resized()
 {
     float w = getWidth();
     float h = getHeight();
+    graphView.setBounds (10, 100, w-40, h-145);
+    signalScrollBar.setBounds (15, h-35, w-52, 20);
+    auto ampSliderLeft = w - 25;
+    amplitudeSlider.setBounds (ampSliderLeft, 100, 20, h-145);
     openButton.setBounds (10, 10, 70, 20);
     closeButton.setBounds (10, 70, 70, 20);
     playButton.setBounds (90, 10, 70, 20);
@@ -75,8 +79,10 @@ void MainContentComponent::resized()
     playModelButton.setBounds (800, 10, 100, 20);
     playCycleWithEnvButton.setBounds (910, 10, 100, 20);
     graphMetaSplinesButton.setBounds (1020, 10, 100, 20);
-    signalScrollBar.setBounds (15, h-35, w-30, 20);
-    graphView.setBounds (10, 100, w-20, h-145);
+    graphModelButton.setBounds (90, 70, 100, 20);
+    interpSelector.setBounds (200, 70, 200, 20);
+    normalizeCycleLengthButton.setBounds (410, 70, 200, 20);
+    randomizeButton.setBounds (600, 70, 200, 20);
     auto freqGuessSliderLeft = 120;
     freqGuessSlider.setBounds (freqGuessSliderLeft, 40, 250, 20);
     freqGuessLabel.setFont(14.0f);
@@ -89,7 +95,6 @@ void MainContentComponent::resized()
     auto mValSliderLeft = 870;
     mValSlider.setBounds (mValSliderLeft, 70, 200, 20);
     mValLabel.setFont(14.0f);
-    
 }
 
 
@@ -117,14 +122,12 @@ void MainContentComponent::computeZeros()
     }
     DBG("Sum of Samples per Cycle: " << totalSamples);
     DBG("Last cycle zero: " << cycleZeros[cycleZeros.size()-1]);
-    // this was testing setup of exp key pattern
-//    keys.add(0); keys.add(1);
-//    for (int j=0; j<7; j++) {
-//        keys.add(keys[keys.size()-1] * 2);
-//    }
-//    keys.add(numCycles-1);
-//    DBG("keys.size():  " << keys.size());
-//    DBG("keys[size()-1]:  " << keys[keys.size()-1]);
+    // set normalized cycle lengths
+    for (int i=0; i<cycleZeros.size(); i++) {
+        normalizedCycleZeros.set(i, cycleZeros[1] * i);
+    }
+    samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
+    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
 }
 
 void MainContentComponent::reComputeZeros()
@@ -138,6 +141,8 @@ void MainContentComponent::reComputeZeros()
     samplesPerCycle.clear();
     int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
     lastSample = (int) lastZero;
+    samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
+    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
 }
 
 bool MainContentComponent::keyStateChanged(bool isKeyDown)
@@ -195,6 +200,10 @@ void MainContentComponent::valueChanged (Value &value)
             graphView.hardLeft = true;
         }
         repaint();
+    }
+    if (value == cycleRendered) {
+//        DBG("value changing: cycleRendered = " << (int) cycleRendered.getValue());
+//        randomizeCycleBcoeffs(cycleRendered.getValue());
     }
 }
 

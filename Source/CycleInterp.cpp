@@ -78,7 +78,6 @@
 
 #include "MainContentComponent.h"
 
-
 void MainContentComponent::writeModelToBuffer()
 {
     if (noCycleInterp) {
@@ -89,23 +88,32 @@ void MainContentComponent::writeModelToBuffer()
         DBG("time to compute model (sec):  " << timeVal);
         return;
     }
-    DBG("setting key cycles");
-    uint32 time1 = Time::getMillisecondCounter();
-    setKeyCycles();
-    DBG("computing key cycles");
+    if (normalizeCycleLength) {
+        uint32 time1 = Time::getMillisecondCounter();
+    setKeyCycleIndices();
     computeKeyCycles();
-    DBG("there are " << keys.size() << " key cycles");
 //    writeKeyCyclesToBuffer();
-    DBG("computing metasplines");
     computeMetaSplines();
-    DBG("computing all cycles");
-    computeAllCycles();
-//    computeNonKeyCycles();
-    uint32 time2 = Time::getMillisecondCounter();
-    float timeVal = (float(time2)-float(time1)) * 0.001;
-    DBG("time to compute model (sec):  " << timeVal);
+//    computeAllCycles();
+//    writeNonKeyCyclesToBuffer();
+    writeNormalizedCyclesToBuffer();
+        uint32 time2 = Time::getMillisecondCounter();
+        float timeVal = (float(time2)-float(time1)) * 0.001;
+        DBG("time to compute model (sec):  " << timeVal);
+    } else {
+        uint32 time1 = Time::getMillisecondCounter();
+    setKeyCycleIndices();
+//    computeKeyCycles();
+    writeKeyCyclesToBuffer();
+    computeMetaSplines();
+//    computeAllCycles();
+    writeNonKeyCyclesToBuffer();
+//    writeNormalizedCyclesToBuffer();
+        uint32 time2 = Time::getMillisecondCounter();
+        float timeVal = (float(time2)-float(time1)) * 0.001;
+        DBG("time to compute model (sec):  " << timeVal);
+    }
 }
-
 
 // compute spline model without interpolation and write to buffer
 void MainContentComponent::modelWithoutCycleInterp()
@@ -132,32 +140,50 @@ void MainContentComponent::modelWithoutCycleInterp()
     }
 }
 
-
-void MainContentComponent::setKeyCycles() {
+void MainContentComponent::setKeyCycleIndices() {
     keys.clear();
     if (expCycleInterp) {
-        keys.add(0); keys.add(1);
-        for (int j=0; j<7; j++) {
+        DBG("setting key cycles for expCycleInterp");
+        keys.add(0); keys.add(1); keys.add(2);
+        for (int i=1; i<7; i++) {
             keys.add(keys[keys.size()-1] * 2);
         }
-        keys.add(numCycles-1);
+    }
+    if (endsOnlyCycleInterp) {
+        DBG("setting key cycles for endsOnlyCycleInterp");
+        keys.add(0);
+    }
+    if (fibonacciCycleInterp) {
+        DBG("setting key cycles for fibonacciCycleInterp");
+        keys.add(0); keys.add(1);
+        int key = 1, j = 1;
+        while (key < numCycles) {
+            key = keys[j] + keys[j-1];
+            if (key < numCycles) {
+                keys.add(key);
+                j++;
+            }
+        }
     }
     if (regularCycleInterp) {
-        keys.add(0);
-        int i = 1;
+        DBG("setting key cycles for regularCycleInterp");
+        int i = 0;
         while (mVal * i < numCycles) {
             keys.add(mVal * i);
             i++;
         }
-        if (keys[keys.size()-1] < numCycles-1) {
-            keys.add(numCycles-1);
-        }
+    }
+    if (keys[keys.size()-1] < numCycles-1) {
+        keys.add(numCycles-1);
     }
     for (int k=0; k<keys.size(); k++) {
         DBG("keys[" << k << "]; " << keys[k]);
     }
+    DBG("there are " << keys.size() << " key cycles");
 }
 
+// compute key cycle bcoeffs, write to keyBcoeffs array
+// but do not compute outputs and do not write to buffer
 void MainContentComponent::computeKeyCycles()
 {
     // Do cycle interpolation with key cycle indices from keys[]
@@ -180,28 +206,25 @@ void MainContentComponent::computeKeyCycles()
         for (int p=0; p<n; p++) {
             keyBcoeffs.set(i*n+p, cycle.bcoeffs[p]);
         }
+        keyCycleArray.add(cycle);
     }
 }
 
+// same as above compute bcoeffs of key cycles,
+// but also compute outputs and write to buffer
 void MainContentComponent::writeKeyCyclesToBuffer()
 {
-    // Do cycle interpolation with key cycle indices from keys[]
+    DBG("computing and writing key cycles");
+    keyCycleArray.clear();
     writeBuffer.clear();
     writeBuffer.setSize(1, lastSample+1);  // channels, samples
     float a = 0, b = 1;
     CycleSpline cycle = CycleSpline(kVal, a, b);
-//    auto* leftBuffer = writeBuffer.getWritePointer (0, 0);
-//    for (int t=0; t<lastSample+1; t++) {
-//        leftBuffer[t] = 0;
-//    }
-//    DBG("last sample: " << lastSample);
-//    DBG("sample 2000: " << writeBuffer.getSample(0, 2000));
-    int i = 0;
     int k = kVal;
     int d = dVal;
     int n = k + d;  // dim of cycle splines
     // compute key cycles and write outputs to buffer
-    for (i=0; i<keys.size(); i++)
+    for (int i=0; i<keys.size(); i++)
     {
         a = cycleZeros[keys[i]];
         b = cycleZeros[keys[i]+1];
@@ -214,16 +237,19 @@ void MainContentComponent::writeKeyCyclesToBuffer()
         computeCycleSplineOutputs(cycle);
         int M = cycle.outputs.size();
         int L = ((int)a) + 1;  // first sample index to write
-        DBG("M:  " << M << "  L:  " << L);
+//        DBG("M:  " << M << "  L:  " << L);
         for (int j=0; j<M; j++) {
             writeBuffer.setSample(0, j+L, cycle.outputs[j]);
         }
+        keyCycleArray.add(cycle);
     }
 }
 
 
 void MainContentComponent::computeMetaSplines()
 {
+    // this is doing piecewise linear metasplines for now, so bcoeffs are skipped
+    DBG("computing metasplines");
     // compute metasplines based on distribution of keycycles
     // targets of metasplines are keycycle coeffs for first n-2, 0 for the last two
     // which are for the second derivative conditions at the ends
@@ -233,10 +259,12 @@ void MainContentComponent::computeMetaSplines()
     for (int i=0; i<n; i++) {  // loop on each bcoeff of cycles with same fixed kVal
         spline = MetaSpline(keys.size()+2, mVal, numCycles); // numCycles = outputs.size()
         for (int j=0; j<keys.size(); j++) {  // j loop on key cycles
-            // put metaspline inputs at values (1/numCycles)*keys
-            // spline.inputs.set(j, (float)keys[j] / (float)numCycles);
-            // for now, use regular interval spacing instead:
-//            spline.inputs.set(j, 1/((float)keys.size()-1));
+            if (regularCycleInterp) {
+                // already set uniform inputs
+            } else {
+                // put metaspline inputs at values keys*(1/numCycles)
+                spline.inputs.set(j, (float)keys[j] / (float)numCycles);
+            }
             spline.targets.set(j, keyBcoeffs[j*n+i]);
         }
         // the last two targets are already set to zero, for the end derivatives
@@ -246,6 +274,119 @@ void MainContentComponent::computeMetaSplines()
         metaSplineArray.add(spline);
     }  // now we have n=k+d meta-splines, one for each of n bcoeffs
 }
+
+
+void MainContentComponent::writeNormalizedCyclesToBuffer()
+{
+    // write all cycles using constant cycle length samplesPerCycleGuess
+    DBG("computing and writing normalized cycles");
+    int i = 0;
+    float a = 0, b=1, ratio = 1;
+    CycleSpline cycle;
+    CycleSpline secondLastKeyCycle = keyCycleArray[keyCycleArray.size()-2];
+    int n = kVal + dVal;
+    while (i < numCycles) {
+        // the next block forces each cycle to have samplesPerCycleGuess samples
+        // as computed by computeCycleSplineOutputs(cycle) using only a and b
+        if (i == 0) {
+            a = 0;
+            b = (float)((int)samplesPerCycleGuess) + 0.5;
+        } else {
+            a = b;
+            b = a + (int)samplesPerCycleGuess;
+        }
+        if (isKey(i)) {   // use key cycle i
+            int j = keyIndex(i);
+            cycle = keyCycleArray[j];
+            cycle.a = a; cycle.b = b;   // reset to normalized a and b
+        } else {
+            // set bcoeffs for (non-key) cycle i using meta-spline
+            cycle = CycleSpline(kVal, a, b);  // this is cycle i
+            // here use only the second last key cycle for the tail:
+            for (int j=0; j<n; j++) {
+                if (i < keys[keys.size()-2]) {
+                    cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+                } else {
+                    cycle.bcoeffs.set(j, secondLastKeyCycle.bcoeffs[j]);
+                }
+            }
+        }
+        computeCycleSplineOutputs(cycle);
+        if (useEnvelope) {
+            if (cycle.maxVal > 0) {
+                ratio = maxSampleValues[i] / cycle.maxVal;
+            } else {
+                DBG("cycle [" << i << "] has maxVal 0");
+            }
+        }
+        // DBG("cycle number:  " << i);
+        // cycle.printData();
+        int M = cycle.outputs.size();
+        int L = ((int)a) + 1;  // first sample index to write
+        for (int j=0; j<M; j++) {
+            writeBuffer.setSample(0, j+L, ratio * cycle.outputs[j]);
+        }
+        i += 1;
+    }
+}
+
+void MainContentComponent::writeNonKeyCyclesToBuffer()
+{
+    DBG("computing and writing non-key cycles");
+    int i = 0;
+    float a = 0, b=1, ratio = 1;
+    CycleSpline cycle;
+    CycleSpline secondLastKeyCycle = keyCycleArray[keyCycleArray.size()-2];
+    int n = kVal + dVal;
+    while (i < numCycles) {
+        if (isKey(i)) {
+            // key cycles already written
+            i += 1;
+        } else {
+            // set bcoeffs for cycle i using meta-spline and write outputs
+            // cycle i starting sample is (int) cycle.a + 1
+            a = cycleZeros[i];
+            b = cycleZeros[i+1];
+    // here we set the cycle length to be the same as second last key cycle
+//            int Tail = keys[keys.size()-2];  // secondLastKeyCycleIndex
+//            float bTail = cycleZeros[Tail+1];
+//            if (i > Tail) {
+//                a = bTail + (i-Tail-1) * 200;
+//                b = a + 200;
+//            }
+    // end setting normalized cycle length for tail
+            cycle = CycleSpline(kVal, a, b);  // this is cycle i
+            // here use only the second last key cycle for the tail:
+//            for (int j=0; j<n; j++) {
+//                if (i < keys[keys.size()-2]) {
+//                    cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+//                } else {
+//                    cycle.bcoeffs.set(j, secondLastKeyCycle.bcoeffs[j]);
+//                }
+//            }
+            for (int j=0; j<n; j++) {
+                cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+            }
+            computeCycleSplineOutputs(cycle);
+            if (useEnvelope) {
+                if (cycle.maxVal > 0) {
+                    ratio = maxSampleValues[i] / cycle.maxVal;
+                } else {
+                    DBG("cycle [" << i << "] has maxVal 0");
+                }
+            }
+            // DBG("cycle number:  " << i);
+            // cycle.printData();
+            int M = cycle.outputs.size();
+            int L = ((int)a) + 1;  // first sample index to write
+            for (int j=0; j<M; j++) {
+                writeBuffer.setSample(0, j+L, ratio * cycle.outputs[j]);
+            }
+            i += 1;
+        }
+    }
+}
+
 
 void MainContentComponent::computeCycleWithEnv()
 {
@@ -280,6 +421,7 @@ void MainContentComponent::computeCycleWithEnv()
 // compute all cycles from model and adjust max values to match audio data
 void MainContentComponent::computeAllCycles()
 {
+    DBG("computing all cycles");
     int i = 0;
     float a = 0, b = 1, ratio = 1;
     CycleSpline cycle;
@@ -287,18 +429,20 @@ void MainContentComponent::computeAllCycles()
     while (i < numCycles) {
         // compute bcoeffs for cycle i from meta-spline and write outputs
         // cycle i starting sample is (int) cycle.a + 1
-        a = cycleZeros[i];
-        b = cycleZeros[i+1];
+        a = cycleZeros[keys[i]];
+        b = cycleZeros[keys[i]+1];
         cycle = CycleSpline(kVal, a, b);  // this is cycle i
         for (int j=0; j<n; j++) {
             cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
         }
         // next function now includes computing maxVal and maxIndex for cycle outputs
         computeCycleSplineOutputs(cycle);
-        if (cycle.maxVal > 0) {
-            ratio = maxSampleValues[i] / cycle.maxVal;
-        } else {
-            DBG("cycle [" << i << "] has maxVal 0");
+        if (useEnvelope) {
+            if (cycle.maxVal > 0) {
+                ratio = maxSampleValues[i] / cycle.maxVal;
+            } else {
+                DBG("cycle [" << i << "] has maxVal 0");
+            }
         }
 //        DBG("cycle number:  " << i);
 //        cycle.printData();
@@ -311,39 +455,8 @@ void MainContentComponent::computeAllCycles()
     }
 }
 
-void MainContentComponent::computeNonKeyCycles()
-{
-    int i = 0;
-    float a = 0, b=1;
-    CycleSpline cycle;
-    int n = kVal + dVal;
-    while (i < numCycles) {
-//        if (isKey(i)) {
-//            // key cycles already written
-////            DBG("skipping key cycle: " << i);
-//        } else {
-        // compute bcoeffs for cycle i from meta-spline and write outputs
-        // cycle i starting sample is (int) cycle.a + 1
-        a = cycleZeros[i];
-        b = cycleZeros[i+1];
-        cycle = CycleSpline(kVal, a, b);  // this is cycle i
-        for (int j=0; j<n; j++) {
-            cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
-        }
-        computeCycleSplineOutputs(cycle);
-        DBG("cycle number:  " << i);
-        cycle.printData();
-        int M = cycle.outputs.size();
-        int L = ((int)a) + 1;  // first sample index to write
-        for (int j=0; j<M; j++) {
-            writeBuffer.setSample(0, j+L, cycle.outputs[j]);
-//            }
-        }
-        i += 1;
-    }
-}
-
-// for rendering audio with triple buffering
+// for rendering audio with multiple cycles for transitioning and feeding buffer in Callback
+// for now, set first cycle to be cycleToGraph (double-clicked), then randomize bcoeffs
 void MainContentComponent::setSplineArrays()
 {
     int d = 3;
@@ -364,10 +477,33 @@ void MainContentComponent::setSplineArrays()
         controlCoeffs.set(4*i, graphView.cycleToGraph.bcoeffs[i]);
 //        DBG("control coeffs [" << n*i << "] = " << controlCoeffs[n*i]);
     }
-    for (int m=0; m<3; m++) {
+    for (int m=0; m<10; m++) {
         for (int i=0; i<n; i++) {
             controlCoeffs.set(4*(i+m*n), graphView.cycles[m].bcoeffs[i]);
         }
+    }
+}
+
+void MainContentComponent::randomizeCycleBcoeffs(int cycleRendered)
+{
+    // randomize bcoeffs for cycle[i], i = cycleRendered + 5 (mod 10)
+    int i = cycleRendered;
+    i += 5;
+    i = i % 10;  // i is now index of cycle to randomize in controlCoeffs
+//    CycleSpline cycle = graphView.cycles[i];
+//    for (int j=0; j<cycle.bcoeffs.size(); j++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        r = 2 * r - 1; // random float in [-1,1]
+//        r *= 0.001;
+//        cycle.bcoeffs.set(j, cycle.bcoeffs[i] + r);
+//    }
+//    // copy cycle.bcoeffs to controlCoeffs:
+    int n = dVal + kVal;
+    for (int p=0; p<n; p++) {
+        float r = juce::Random::getSystemRandom().nextFloat();
+        r = 2 * r - 1; // random float in [-1,1]
+        r *= 0.001;
+        controlCoeffs.set(4*(p+i*n), controlCoeffs[4*(p+i*n)] + r);
     }
 }
 
@@ -382,8 +518,8 @@ float MainContentComponent::computeSpline(int control, float t)
 {
     // assume t is in [0,1] and output is 0 at the ends
     int m = control;
-    m = 0;  // set this to use only cycles[0] in graphView setSplineArrays
-            // ignore the other two cycles in controlCoeffs
+//    m = 0;  // set this to use only cycles[0] in graphView setSplineArrays
+            // ignore the other cycles in controlCoeffs
     int d = 3;
     int k = kVal;
     float output = 0;
@@ -422,9 +558,7 @@ float MainContentComponent::computeSpline(int control, float t)
     return output;
 }
 
-
-
-
+// returns true if i is the index of some key cycle
 bool MainContentComponent::isKey(int i)
 {
     for (int j=0; j<keys.size(); j++) {
@@ -434,6 +568,18 @@ bool MainContentComponent::isKey(int i)
     }
     return false;
 }
+
+// returns the index of key cycle with value i
+int MainContentComponent::keyIndex(int i)
+{
+    for (int j=0; j<keys.size(); j++) {
+        if (keys[j] == i) {
+            return j;
+        }
+    }
+    return -1;
+}
+
 
 // for envelope, find max values from audio data per cycle
 void MainContentComponent::findMaxValuesPerCycle(Array<float>&  maxSampleIndices, Array<float>&  maxSampleValues, Array<float>& cycleZeros, AudioBuffer<float>& samples)
@@ -472,18 +618,6 @@ int MainContentComponent::getCycleNumber(float t)
     return i-1;
 }
 
-// Need to do other presets for cycle interpolation, like exponential:
-// 0,1,2,4,8,16,32,64,128,...
-// Could also do only the above key cycles, then keep the last one and
-// simply follow the tail of the envelope of the original signal.
-
-// Need to break up next function into smaller pieces:
-// 1. prep key cycles
-// 2. write key cycles to buffer
-// 3. write key cycle bcoeffs to array
-// 4. prep meta-splines
-// 5. prep non-key cycles
-// 6. write non-key cycles to buffer
 
 // Write model to buffer with uniform (or other) cycle interpolation
 void MainContentComponent::writeCycleInterpModelToBuffer()
@@ -493,11 +627,11 @@ void MainContentComponent::writeCycleInterpModelToBuffer()
         modelWithoutCycleInterp();
         return;
     }
-    setKeyCycles();
+    setKeyCycleIndices();
     if (expCycleInterp) {
         writeKeyCyclesToBuffer();
         computeMetaSplines();
-        computeNonKeyCycles();
+        writeNonKeyCyclesToBuffer();
     }
     if (mVal > 1) {
         // Do cycle interpolation with key cycle indices 0,m,2m,...

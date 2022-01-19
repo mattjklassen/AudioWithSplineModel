@@ -65,7 +65,14 @@ void MainContentComponent::addSliders()
     addAndMakeVisible (&mValLabel);
     mValLabel.setText ("m = key cycle mult", juce::dontSendNotification);
     mValLabel.attachToComponent (&mValSlider, true);
-  
+    
+    addAndMakeVisible (&amplitudeSlider);
+    amplitudeSlider.setRange (0.1, 30);
+    amplitudeSlider.setNumDecimalPlacesToDisplay(2);
+    amplitudeSlider.addListener (this);
+    amplitudeSlider.setValue (amplitudeFactor);
+    amplitudeSlider.setSkewFactorFromMidPoint (1);
+    amplitudeSlider.setSliderStyle(juce::Slider::LinearVertical);
 }
 
 
@@ -97,6 +104,12 @@ void MainContentComponent::sliderValueChanged (juce::Slider* slider)
         }
         DBG("new mVal:  " << mVal);
         graphView.setmVal(mVal);
+        graphView.repaint();
+    }
+    if (slider == &amplitudeSlider)
+    {
+        amplitudeFactor = amplitudeSlider.getValue();
+        graphView.setAmplitudeFactor(amplitudeFactor);
         graphView.repaint();
     }
 }

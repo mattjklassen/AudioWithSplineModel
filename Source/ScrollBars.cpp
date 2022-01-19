@@ -22,8 +22,8 @@ void MainContentComponent::drawScrollBox(juce::Graphics& g)
 {
     juce::Path path;
     path.startNewSubPath (juce::Point<float> (10, h-40));
-    path.lineTo (juce::Point<float> (w-10, h-40));
-    path.lineTo (juce::Point<float> (w-10, h-10));
+    path.lineTo (juce::Point<float> (w-31, h-40));
+    path.lineTo (juce::Point<float> (w-31, h-10));
     path.lineTo (juce::Point<float> (10, h-10));
     path.lineTo (juce::Point<float> (10, h-40));
     float myThickness = 1.0;

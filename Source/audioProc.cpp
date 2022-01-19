@@ -100,12 +100,9 @@ void MainContentComponent::writeWavFile()
 
 void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo& bufferToFill)
 {
-//    if (playModelOn) {
-//    }
     if (playCycleOn) {
         auto* leftBuffer  = bufferToFill.buffer->getWritePointer (0, bufferToFill.startSample);
         auto* rightBuffer = bufferToFill.buffer->getWritePointer (1, bufferToFill.startSample);
-        int control = 0;
         auto Pi = juce::MathConstants<double>::pi;
         auto localTargetFrequency = targetFrequency;
         auto frequencyIncrement = (localTargetFrequency - currentFrequency) / bufferToFill.numSamples;
@@ -114,16 +111,24 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
             // compute currentSample value with spline of selected cycle:
             if (currentAngle > 2.0 * Pi) {
                 currentAngle -= 2.0 * Pi;
-                control += 1;
-                if (control == 3) {
-                    control = 0;
-                }
             }
             float currentSample = computeSpline(control, currentAngle / (2 * Pi));
-            currentFrequency += frequencyIncrement;
-            currentAngle += angleDelta;
             leftBuffer[sample]  = currentSample;
             rightBuffer[sample] = currentSample;
+//            sampleRendered += 1;
+//            if (sampleRendered == samplesPerSelectedCycle - 1) {
+//                sampleRendered = 0;
+//                cycleRendered = control;
+//                if (randomizeBcoeffs) {
+//                    control += 1;
+//                    DBG("control = " << control);
+//                    if (control == 10) {
+//                        control = 0;
+//                    }
+//                }
+//            }
+            currentFrequency += frequencyIncrement;
+            currentAngle += angleDelta;
         }
     }
     if (playWavFileOn)

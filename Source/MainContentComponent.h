@@ -93,7 +93,7 @@ public:
 
     Value lEP;  // left End Point for graphing interval in graphView
     Value rEP;  // right End Point for graphing interval in graphView
-//    Value cycleRendered;  // set to 1 or true when cycle is rendered
+    Value cycleRendered;  // set to i when cycle[i] is rendered by audio callback
 
     
 private:
@@ -162,6 +162,14 @@ private:
     
     void graphMetaSplinesButtonClicked();
     
+    void normalizeCycleLengthButtonClicked();
+    
+    void randomizeCycleBcoeffs(int cycleRendered);
+    
+    void interpSelectionChanged();
+    
+    void graphModelButtonClicked();
+    
     void readAudioData (File file);
 
     void readAudioData2 (AudioFormatReader *reader);
@@ -188,15 +196,19 @@ private:
     
     void computeMetaSplines();
     
-    void setKeyCycles();
+    void setKeyCycleIndices();
     
     void computeKeyCycles();
     
-    void computeNonKeyCycles();
+    void writeNonKeyCyclesToBuffer();
+    
+    void writeNormalizedCyclesToBuffer();
     
     void computeAllCycles();
     
     bool isKey(int i);
+    
+    int keyIndex(int i);
         
     void findMaxValuesPerCycle(Array<float>&  maxSampleIndices, Array<float>&  maxSampleValues, Array<float>& cycleZeros, AudioBuffer<float>& samples);
    
@@ -205,6 +217,8 @@ private:
     void addSliders();
     
     void addScrollbar();
+    
+    void randomizeButtonClicked();
     
     struct fileheader
     {
@@ -230,6 +244,9 @@ private:
     juce::TextButton playButton;
     juce::TextButton stopButton;
     juce::TextButton graphButton;
+    juce::TextButton graphModelButton;
+    juce::TextButton expCycleInterpButton;
+    juce::TextButton regCycleInterpButton;
     juce::TextButton shadeButton;
     juce::TextButton targetButton;
     juce::TextButton selectCycleButton;
@@ -238,6 +255,8 @@ private:
     juce::TextButton playModelButton;
     juce::TextButton playCycleWithEnvButton;
     juce::TextButton graphMetaSplinesButton;
+    juce::ToggleButton normalizeCycleLengthButton;
+    juce::ToggleButton randomizeButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
@@ -246,7 +265,10 @@ private:
     juce::Slider kValSlider;
     juce::Label  kValLabel;
     juce::Slider mValSlider;
+    juce::Slider amplitudeSlider;
     juce::Label  mValLabel;
+    juce::ComboBox interpSelector;
+    juce::Random random;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -263,7 +285,8 @@ private:
     unsigned dataSize,          // size of data in bytes
              sampleRate,        // sample rate
              sampleCount;       // number of data samples
-    float freqGuess = 220;
+    float freqGuess = 220;      // guess to determine cycle lengths
+    float samplesPerCycleGuess = 200.5;  // will calculate based on sampleRate/freqGuess
     char buffer[44];            // for wav file header
     float w = 0, h = 0;         // width and height of display for MainContentComponent
     float leftEndPoint = 0;     // left endpoint in (float)samples of Interval to graph
@@ -274,20 +297,26 @@ private:
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
     int kVal = 50;              // k = number of subintervals for splines
     int mVal = 20;               // m = multiple for key cycles (simple regular model)
-    int dVal = 3;               // d = degree for splines, default 3
+    int dVal = 3;                // d = degree for splines, default 3
+    int sampleRendered = 0;
+    int samplesPerSelectedCycle = 0;
+    float amplitudeFactor = 1;
     // zeros in audio data are computed based on linear interpolation between audio samples
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
+    Array<float> normalizedCycleZeros;  // make all cycles same length
     Array<float> allZeros;      // all zeros in audio sample
     Array<float> keyBcoeffs;
     Array<int> samplesPerCycle; // number of samples in each cycle of audio sample until last zero
     Array<int> keys;
     Array<MetaSpline> metaSplineArray;
+    Array<CycleSpline> keyCycleArray;
     Array<float> maxSampleIndices;  // per cycle, sample index for max abs value
     Array<float> maxSampleValues;   // per cycle, abs max value at sample
     int lastSample;             // index of last sample = (int) lastZero
     int numCycles;              // number of cycles computed, (int) (lengthInSeconds * freqGuess)
     int startIndex = 0;         // index of first cycle to graph
     int endIndex = 0;           // index of last cycle to graph
+    int control = 0;            // for not randomizing cycles
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;
@@ -295,9 +324,14 @@ private:
     bool playModelOn = false;
     bool playWavFileOn = false;
     bool expCycleInterp = false;
+    bool fibonacciCycleInterp = false;
     bool noCycleInterp = false;
-    bool regularCycleInterp = false;
-    bool interpMagnitude = false;
+    bool otherCycleInterp = false;
+    bool regularCycleInterp = true;
+    bool endsOnlyCycleInterp = false;
+    bool normalizeCycleLength = false;
+    bool useEnvelope = true;
+    bool randomizeBcoeffs = false;
     bool keysWithoutCycleInterp = false;
     bool oneCycleWithEnvelope = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
@@ -305,7 +339,6 @@ private:
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
     juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
     juce::Array<float> knotVals;        // this only depends on k and d
-//    File outputFile = File("~/output.wav");
     File outputFile = File::getSpecialLocation(File::userHomeDirectory).getChildFile("output.wav");
     
 //    juce::Array<float> controlCoeffs0;  // These are for triple-buffering so that AudioCallBack

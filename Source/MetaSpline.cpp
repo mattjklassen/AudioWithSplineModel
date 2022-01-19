@@ -79,13 +79,21 @@ MetaSpline::MetaSpline(int _n, int _m, int _numOutputs)
     }
     // this is simple uniform knot sequence
     
-    // changing inputs to be suitable for natural cubic spline, ie. n-2=k+1 of them
-    // inputs: 0,1/k,2/k,...,1
+    // inputs are uniform based on dimension n
+    incr = 1 / (float)(n-1);
     inputs.add(0);
-    for (int i=1; i<k+1; i++)
+    for (int i=1; i<n; i++)
     {
         inputs.add(inputs[i-1] + incr);
     }
+    
+    // changing inputs to be suitable for natural cubic spline, ie. n-2=k+1 of them
+    // inputs: 0,1/k,2/k,...,1
+//    inputs.add(0);
+//    for (int i=1; i<k+1; i++)
+//    {
+//        inputs.add(inputs[i-1] + incr);
+//    }
     // k+1=n-2 inputs are uniformly spaced in interval [0,1]
     
     for (int i=0; i<n; i++)

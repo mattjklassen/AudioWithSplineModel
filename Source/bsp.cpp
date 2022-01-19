@@ -397,6 +397,8 @@ float bSplineVal(int k, int j, float t)
 
 // use piecewise linear graph between targets to compute outputs
 // no bcoeffs are necessary here, just targets and outputs.size
+// targets for metaspline i will be bcoeff i from each key cycle
+// outputs for metaspline i will be bcoeff i for all cycles
 void computeLinearMetaSplineOutputs(MetaSpline& spline)
 {
     int P = spline.outputs.size();

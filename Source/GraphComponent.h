@@ -33,13 +33,17 @@ public:
     void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess, Array<float>& _maxSampleIndices, Array<float>& _maxSampleValues);
     
     void setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray);
-    
+    void setModelForGraph(AudioBuffer<float>& _modelBuffer);
     void setkVal(int _kVal);
     void setmVal(int _mVal);
+    void setAmplitudeFactor(float _amplitudeFactor);
     
     AudioBuffer<float> floatBuffer;
+    AudioBuffer<float> modelBuffer;
     bool audioLoaded = false;
     bool updateGraph = false;
+    bool modelLoaded = false;
+    bool updateModelGraph = false;
     bool cyclesToGraph = false;
     bool callShadeCycles = false;
     bool graphSplineCycle = false;
@@ -58,6 +62,7 @@ public:
     unsigned sampleRate;
     float addoffset = 0;
     float magfactor = 1;
+    float amplitudeFactor = 1;
     int startIndex = 0;
     int endIndex = 0;
     int metaSplineIndex = 0;
@@ -95,7 +100,7 @@ public:
     
     Array<MetaSpline> metaSplineArray;
     
-    CycleSpline cycles[3];
+    CycleSpline cycles[10];
     
     void reset();
     
@@ -112,6 +117,8 @@ private:
     void mouseDoubleClick (const MouseEvent& event) override;
     
     void graphSignal(juce::Graphics& g);
+    
+    void graphModel(juce::Graphics& g);
 
     void graphSpline(juce::Graphics& g, CycleSpline& cycle);
     

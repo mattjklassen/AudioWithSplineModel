@@ -114,6 +114,16 @@ void GraphComponent::setDataForGraph(AudioBuffer<float>& _floatBuffer, bool _aud
     kVal = _kVal;
 }
 
+void GraphComponent::setAmplitudeFactor(float _amplitudeFactor)
+{
+    amplitudeFactor = _amplitudeFactor;
+}
+
+void GraphComponent::setModelForGraph(AudioBuffer<float>& _modelBuffer)
+{
+    modelBuffer = _modelBuffer;
+}
+
 void GraphComponent::setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray)
 {
     metaSplineArray = _metaSplineArray;
@@ -190,8 +200,8 @@ void GraphComponent::findCyclesToGraph ()
 
 void GraphComponent::graphSignal(juce::Graphics& g)
 {
-    juce::Path graph;
-    g.setColour (juce::Colours::black);
+    juce::Path signalGraph;
+    juce::Path modelGraph;
     scaleInterval();
     // set Value objects which will be used to set scrollBar
     leftEP.setValue(leftEndPoint);
@@ -200,8 +210,10 @@ void GraphComponent::graphSignal(juce::Graphics& g)
     float x = 0;
     float s = floatBuffer.getSample(0, startSample);
     float y = (1 - s) * h/2;
-    graph.startNewSubPath (juce::Point<float> (x, y));
-
+    signalGraph.startNewSubPath (juce::Point<float> (x, y));
+    if (updateModelGraph) {
+        modelGraph.startNewSubPath (juce::Point<float> (x, y));
+    }
     int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
     float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
     int j = 1;
@@ -211,19 +223,29 @@ void GraphComponent::graphSignal(juce::Graphics& g)
         }
         x = x + mult * xincr;
         j = startSample + i * mult;
-//        s = samples[j];
         s = floatBuffer.getSample(0, j);
+        s *= amplitudeFactor;
         y = (1 - s) * h/2;
-        graph.lineTo (juce::Point<float> (x,y));
+        signalGraph.lineTo (juce::Point<float> (x,y));
         g.setColour (juce::Colours::green);
         if (numSamples < 400) {
             drawDot(juce::Point<float> (x,y), g);
+        }
+        if (updateModelGraph) {
+            s = modelBuffer.getSample(0, j);
+            s *= amplitudeFactor;
+            y = (1 - s) * h/2;
+            modelGraph.lineTo (juce::Point<float> (x,y));
         }
     }
     float myThickness = 1;
     juce::PathStrokeType myType = PathStrokeType(myThickness);
     g.setColour (juce::Colours::darkgrey);
-    g.strokePath (graph, myType);
+    g.strokePath (signalGraph, myType);
+    if (updateModelGraph) {
+        g.setColour (juce::Colours::blue);
+        g.strokePath (modelGraph, myType);
+    }
 }
 
 void GraphComponent::graphLinearMetaSplines(juce::Graphics& g)
@@ -242,6 +264,7 @@ void GraphComponent::graphLinearMetaSplines(juce::Graphics& g)
     for (int i=1; i<spline.outputs.size(); i++) {
         x = (float)i * incr;
         y = spline.outputs[i];
+        y *= amplitudeFactor;
         juce::Point<float> P(x,y);
         P = signalToScreenCoords(P);
         graph.lineTo(P);
@@ -310,6 +333,7 @@ void GraphComponent::graphSpline (juce::Graphics& g, CycleSpline& cycle)
     for (int i=0; i<J-I; i++) {
         x = (float) i+I;
         y = cycle.outputs[i];
+        y *= amplitudeFactor;
         juce::Point<float> P(x,y);
         P = signalToScreenCoords(P);
         graph.lineTo(P);
@@ -501,7 +525,13 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
 //        DBG("max index: " << maxSampleIndices[n]);
 //        DBG("max value: " << maxSampleValues[n]);
 
+        // How many cycles do we need in this array in order to render one chunk
+        // while modifying others?  One call to audio callback could require 5 or
+        // more of these cycles if they are around 100 samples each.  So maybe 10?
+        
         cycles[0] = cycleToGraph;
+//        cycles[1] = cycleToGraph;
+//        cycles[2] = cycleToGraph;
         
         // below was setup for rendering cycles continuously as cycles[i] i=0,1,2
         // with the idea of modifying one cycle as another is playing
