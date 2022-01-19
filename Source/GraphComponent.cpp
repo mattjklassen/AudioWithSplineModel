@@ -232,7 +232,7 @@ void GraphComponent::graphSignal(juce::Graphics& g)
             drawDot(juce::Point<float> (x,y), g);
         }
         if (updateModelGraph) {
-            s = modelBuffer.getSample(0, j);
+            s = modelBuffer.getSample(0, juce::jmin(j, modelBuffer.getNumSamples() - 1));
             s *= amplitudeFactor;
             y = (1 - s) * h/2;
             modelGraph.lineTo (juce::Point<float> (x,y));
