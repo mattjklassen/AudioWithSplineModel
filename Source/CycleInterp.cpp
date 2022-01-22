@@ -164,8 +164,8 @@ void MainContentComponent::setKeyCycleIndices() {
     }
     if (fibonacciCycleInterp) {
         DBG("setting key cycles for fibonacciCycleInterp");
-        keys.add(0); keys.add(1);
-        int key = 1, j = 1;
+        keys.add(0); keys.add(1); keys.add(2);
+        int key = 2, j = 2;
         while (key < numCycles) {
             key = keys[j] + keys[j-1];
             if (key < numCycles) {
