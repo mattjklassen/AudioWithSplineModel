@@ -17,10 +17,10 @@
 void GraphComponent::paint (juce::Graphics& g)
 {
     g.fillAll (juce::Colours::lightgrey);
-    g.setColour (juce::Colours::darkgrey);
     w = getWidth();
     h = getHeight();
-    
+        
+    g.setColour (juce::Colours::darkgrey);
     drawGraphBox(g, w, h);
     g.setColour (juce::Colours::blue);
     if (graphMetaSplinesOn) {
@@ -45,6 +45,10 @@ void GraphComponent::paint (juce::Graphics& g)
     }
     if (plotTargets) {
         plotTargetPoints(g, cycleToGraph);
+    }
+    if (mouseOverCycleZero) {
+        g.setColour (juce::Colours::yellow);
+        drawLargeDot(zeroPoint, g);
     }
 }
 
@@ -139,6 +143,22 @@ void GraphComponent::setmVal(int _mVal)
     mVal = _mVal;
 }
 
+void GraphComponent::setKeys(Array<int>& _keys)
+{
+    keys = _keys;
+}
+
+// returns true if i is the value of some key cycle
+bool GraphComponent::isKey(int i)
+{
+    for (int j=0; j<keys.size(); j++) {
+        if (keys[j] == i) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess, Array<float>& _maxSampleIndices, Array<float>& _maxSampleValues)
 {
     cycleZeros = _cycleZeros;
@@ -223,6 +243,10 @@ void GraphComponent::graphSignal(juce::Graphics& g)
         }
         x = x + mult * xincr;
         j = startSample + i * mult;
+        if (j > sampleCount-1) {
+            j = sampleCount-1;
+            i = numSamples;
+        }
         s = floatBuffer.getSample(0, j);
         s *= amplitudeFactor;
         y = (1 - s) * h/2;
@@ -375,6 +399,11 @@ void GraphComponent::drawDot(juce::Point<float> (P), juce::Graphics& g)
     g.fillEllipse (P.getX()-1.5, P.getY()-1.5, 3, 3);
 }
 
+void GraphComponent::drawLargeDot(juce::Point<float> (P), juce::Graphics& g)
+{
+    g.fillEllipse (P.getX()-2.5, P.getY()-2.5, 5, 5);
+}
+
 // Need to process cycles in view one by one, to shade, then also to select
 // We should have a cycle object which has the following data and methods:
 // float a, b - interval endpoints of cycle
@@ -397,6 +426,9 @@ void GraphComponent::shadeCycle(int n, juce::Graphics& g)
     }
     juce::Rectangle<float> toShade (P, Q);
     g.setColour (cycleColours[n % 5]);
+    if (isKey(n)) {
+        g.setColour(highlightColour);
+    }
     if (n == highlightCycle) {
         g.setColour(highlightColour);
     }
@@ -416,6 +448,10 @@ void GraphComponent::shadeCycle(int n, juce::Graphics& g)
     juce::Rectangle<float> Rect2 (ptL2, ptR2);
     g.setColour(juce::Colours::darkgrey);
     g.drawText (samplesPC, Rect2, juce::Justification::centred, true);
+    juce::Point<float> cycleZeroLeft (cycleZeros[n], 0);
+    cycleZeroLeft = signalToScreenCoords(cycleZeroLeft);
+    g.setColour (juce::Colours::darkgrey);
+    drawLargeDot(cycleZeroLeft, g);
 }
 
 void GraphComponent::shadeCycles(juce::Graphics& g)
@@ -437,15 +473,21 @@ void GraphComponent::mouseWheelMove (const MouseEvent& event, const MouseWheelDe
             hardLeft = true;
             return;
         }
+        if (rightEndPoint + 100 * addoffset > sampleCount-1) {
+            addoffset = 0;
+            hardRight = true;
+            return;
+        }
         hardLeft = false;
+        hardRight = false;
         leftEndPoint += 100 * addoffset;
         rightEndPoint += 100 * addoffset;
         addoffset = 0;
         if (leftEndPoint < 0) {
             leftEndPoint = 0;
         }
-        if (rightEndPoint > sampleCount) {
-            rightEndPoint = sampleCount;
+        if (rightEndPoint > sampleCount-1) {
+            rightEndPoint = sampleCount-1;
 //            leftEndPoint = rightEndPoint - (float) numSamples;
         }
         repaint();
@@ -502,7 +544,6 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
         return;
     }
     juce::Point<int> P = event.getPosition();
-//    DBG ("Double-Clicked at: " << P.toString());
     juce::Point<float> Q (P.getX(),P.getY());
     juce::Point<float> S = screenToSignalCoords(Q);
     int n = getCycleNumber(S.getX());
@@ -580,7 +621,9 @@ void GraphComponent::plotTargetPoints(juce::Graphics& g, CycleSpline& cycle)
     int n = cycle.inputs.size();
     for (int i=0; i<n; i++) {
         P.setX(cycle.inputs[i]);
-        P.setY(cycle.targets[i]);
+        float y = cycle.targets[i];
+        y *= amplitudeFactor;
+        P.setY(y);
         Q = signalToScreenCoords(P);
         drawDot(Q, g);
     }
@@ -589,12 +632,96 @@ void GraphComponent::plotTargetPoints(juce::Graphics& g, CycleSpline& cycle)
 
 void GraphComponent::mouseDown (const MouseEvent& event)
 {
-//    DBG ("Clicked at: " << event.getPosition().toString());
-//    juce::Path curve;
-//    curve.startNewSubPath(event.getPosition());
+    // need to capture mouse hover when near a cycle zero on the timeline and highlight zero
+    // then click and drag should move cycle zero to next zero (AllZeros) left or right
+
+    if (!mouseOverCycleZero)
+    {
+        PopupMenu m;
+        m.addItem (1, "add key cycle");
+        m.addItem (2, "remove key cycle");
+        m.addItem (3, "graph cycle spline");
+        
+        const int result = m.show();
+        juce::Point<int> P = event.getPosition();
+        juce::Point<float> Q (P.getX(),P.getY());
+        juce::Point<float> S = screenToSignalCoords(Q);
+        int n = getCycleNumber(S.getX());
+
+        if (result == 0)
+        {
+            // user dismissed the menu without picking anything
+        }
+        else if (result == 1)
+        {
+            keysToAdd.add(n);
+            DBG("adding key cycle " << n);
+        }
+        else if (result == 2)
+        {
+            keysToRemove.add(n);
+            DBG("removing key cycle " << n);
+        }
+        else if (result == 3)
+        {
+            if (! audioLoaded) {
+                return;
+            }
+            DBG("graphing cycle spline " << n);
+            juce::Point<int> P = event.getPosition();
+            juce::Point<float> Q (P.getX(),P.getY());
+            juce::Point<float> S = screenToSignalCoords(Q);
+            int n = getCycleNumber(S.getX());
+            if (highlightCycle == n) {
+                highlightCycle = -1;
+                graphSplineCycle = false;
+                plotTargets = false;
+            } else {
+                highlightCycle = n;
+            }
+            if (highlightCycle == n) {
+                float a = cycleZeros[n];
+                float b = cycleZeros[n+1];
+                cycleToGraph = CycleSpline(kVal, a, b);
+                computeCycleBcoeffs(cycleToGraph, floatBuffer);
+                computeCycleSplineOutputs(cycleToGraph);
+                graphSplineCycle = true;
+                cycles[0] = cycleToGraph;
+            }
+            repaint();
+        }
+    }
 }
 
 void GraphComponent::mouseDrag (const MouseEvent& event)
 {
-//    DBG ("Dragging at: " << event.getPosition().toString());
+    DBG ("Dragging at: " << event.getPosition().toString());
+}
+
+void GraphComponent::mouseMove (const MouseEvent& event)
+{
+    mouseOverCycleZero = false;
+    if (updateGraph)
+    {
+        juce::Point<int> P = event.getPosition();
+        juce::Point<float> Q (P.getX(),P.getY());
+        juce::Point<float> S = screenToSignalCoords(Q);
+        if (abs(S.getY()) < 0.01) {
+            int i = startIndex;
+            while (i < endIndex + 1) {
+                float t = cycleZeros[i];
+                if (abs(t - S.getX()) < 10) {
+                    zeroPoint.setX(t);
+                    zeroPoint.setY(0);
+                    zeroPoint = signalToScreenCoords(zeroPoint);
+                    mouseOverCycleZero = true;
+                    repaint();
+                }
+                i += 1;
+            }
+        } else {
+            mouseOverCycleZero = false;
+        }
+        repaint();
+    }
 }

@@ -137,6 +137,7 @@ void MainContentComponent::addButtons()
     interpSelector.addItem ("No Cycle Interp", 3);
     interpSelector.addItem ("Fibonacci Cycle Interp", 4);
     interpSelector.addItem ("Ends Only Cycle Interp", 5);
+    interpSelector.addItem ("Other Cycle Interp", 6);
     interpSelector.setColour (juce::ComboBox::backgroundColourId, buttonColours[3]);
     interpSelector.onChange = [this] { interpSelectionChanged(); };
     interpSelector.setSelectedId (1);
@@ -144,48 +145,36 @@ void MainContentComponent::addButtons()
     setSize (400, 200);
 }
 
+void MainContentComponent::setInterpSelectionsFalse()
+{
+    regularCycleInterp = false;
+    expCycleInterp = false;
+    noCycleInterp = false;
+    fibonacciCycleInterp = false;
+    endsOnlyCycleInterp = false;
+    otherCycleInterp = false;
+}
+
 void MainContentComponent::interpSelectionChanged()
 {
+    setInterpSelectionsFalse();
     switch (interpSelector.getSelectedId())
     {
         case 1: regularCycleInterp = true;
-                expCycleInterp = false;
-                noCycleInterp = false;
-                fibonacciCycleInterp = false;
-                endsOnlyCycleInterp = false;
                 break;
         case 2: expCycleInterp = true;
-                regularCycleInterp = false;
-                noCycleInterp = false;
-                fibonacciCycleInterp = false;
-                endsOnlyCycleInterp = false;
                 break;
         case 3: noCycleInterp = true;
-                expCycleInterp = false;
-                regularCycleInterp = false;
-                fibonacciCycleInterp = false;
-                endsOnlyCycleInterp = false;
                 break;
         case 4: fibonacciCycleInterp = true;
-                expCycleInterp = false;
-                noCycleInterp = false;
-                regularCycleInterp = false;
-                endsOnlyCycleInterp = false;
                 break;
         case 5: endsOnlyCycleInterp = true;
-                expCycleInterp = false;
-                noCycleInterp = false;
-                regularCycleInterp = false;
-                fibonacciCycleInterp = false;
+                break;
+        case 6: otherCycleInterp = true;
                 break;
         default: regularCycleInterp = true;
-                expCycleInterp = false;
-                noCycleInterp = false;
-                fibonacciCycleInterp = false;
-                endsOnlyCycleInterp = false;
                 break;
     }
-
 }
 
 void MainContentComponent::setButtonColours()
@@ -289,6 +278,8 @@ void MainContentComponent::computeModelButtonClicked()
     graphView.setModelForGraph(writeBuffer);
     writeWavFile();
     DBG("output.wav written");
+    graphView.keysToAdd.clear();
+    graphView.keysToRemove.clear();
 }
 
 void MainContentComponent::playModelButtonClicked()
@@ -347,6 +338,7 @@ void MainContentComponent::graphModelButtonClicked()
             graphView.updateModelGraph = true;
         }
     }
+    graphView.setKeys(keys);
     graphView.repaint();
 }
 

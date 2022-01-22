@@ -41,6 +41,8 @@ void MainContentComponent::scrollBarMoved (ScrollBar* scrollBarThatHasMoved ,
     {
         graphView.rightEndPoint = (float) graphView.sampleCount;
         graphView.leftEndPoint = graphView.rightEndPoint - (float) graphView.numSamples;
+        graphView.hardRight = true;
+        DBG("set hardRight true");
     }
     if (newRangeL == 0) {
         graphView.hardLeft = true;

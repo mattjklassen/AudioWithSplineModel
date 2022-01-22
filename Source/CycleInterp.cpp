@@ -141,12 +141,21 @@ void MainContentComponent::modelWithoutCycleInterp()
 }
 
 void MainContentComponent::setKeyCycleIndices() {
-    keys.clear();
+    if (otherCycleInterp) {
+            // leave keys to reuse and modify
+        } else {
+            keys.clear();
+        }
     if (expCycleInterp) {
         DBG("setting key cycles for expCycleInterp");
-        keys.add(0); keys.add(1); keys.add(2);
-        for (int i=1; i<7; i++) {
-            keys.add(keys[keys.size()-1] * 2);
+        keys.add(0); keys.add(1);
+        int key = 1, j = 1;
+        while (key < numCycles) {
+            key = keys[j] * 2;
+            if (key < numCycles) {
+                keys.add(key);
+                j++;
+            }
         }
     }
     if (endsOnlyCycleInterp) {
@@ -176,6 +185,36 @@ void MainContentComponent::setKeyCycleIndices() {
     if (keys[keys.size()-1] < numCycles-1) {
         keys.add(numCycles-1);
     }
+    bool modified = false;
+    int Add = graphView.keysToAdd.size();
+    if (Add > 0) {
+        for (int i=0; i<Add; i++) {
+            int newKey = graphView.keysToAdd[i];
+            if (!isKey(newKey)) {
+                keys.add(newKey);
+                modified = true;
+            }
+        }
+    }
+    int Remove = graphView.keysToRemove.size();
+    if (Remove > 0) {
+        for (int i=0; i<Remove; i++) {
+            int oldKey = graphView.keysToRemove[i];
+            if (isKey(oldKey)) {
+                int j = keyIndex(oldKey);
+                keys.remove(j);
+                modified = true;
+            }
+        }
+    }
+    keys.sort();
+    if (modified) {
+        setInterpSelectionsFalse();
+        otherCycleInterp = true;
+        interpSelector.setSelectedId (6);
+    }
+    graphView.keysToAdd.clear();
+    graphView.keysToRemove.clear();
     for (int k=0; k<keys.size(); k++) {
         DBG("keys[" << k << "]; " << keys[k]);
     }
@@ -187,12 +226,14 @@ void MainContentComponent::setKeyCycleIndices() {
 void MainContentComponent::computeKeyCycles()
 {
     // Do cycle interpolation with key cycle indices from keys[]
+    keyCycleArray.clear();
     writeBuffer.clear();
     writeBuffer.setSize(1, lastSample+1);  // channels, samples
     float a = 0, b = 1;
     CycleSpline cycle = CycleSpline(kVal, a, b);
     int i = 0;
     int k = kVal;
+    DBG("kVal = " << kVal);
     int d = dVal;
     int n = k + d;  // dim of cycle splines
     // compute key cycles and write bcoeffs to keyBcoeffs array
@@ -244,7 +285,6 @@ void MainContentComponent::writeKeyCyclesToBuffer()
         keyCycleArray.add(cycle);
     }
 }
-
 
 void MainContentComponent::computeMetaSplines()
 {
@@ -395,10 +435,20 @@ void MainContentComponent::computeCycleWithEnv()
     int i = 0;
     CycleSpline cycle;
     int n = kVal + dVal;
+    float a = 0, b = 1, ratio = 1;
     while (i < numCycles) {
-        float a = 0, b = 1, ratio = 1;
-        a = cycleZeros[i];
-        b = cycleZeros[i+1];
+        if (normalizeCycleLength) {
+            if (i == 0) {
+                a = 0;
+                b = (float)((int)samplesPerCycleGuess) + 0.5;
+            } else {
+                a = b;
+                b = a + (int)samplesPerCycleGuess;
+            }
+        } else {
+            a = cycleZeros[i];
+            b = cycleZeros[i+1];
+        }
         cycle = CycleSpline(kVal, a, b);  // this is cycle i
         for (int j=0; j<n; j++) {
             cycle.bcoeffs.set(j, graphView.cycleToGraph.bcoeffs[j]);
@@ -558,7 +608,7 @@ float MainContentComponent::computeSpline(int control, float t)
     return output;
 }
 
-// returns true if i is the index of some key cycle
+// returns true if i is the value of some key cycle
 bool MainContentComponent::isKey(int i)
 {
     for (int j=0; j<keys.size(); j++) {

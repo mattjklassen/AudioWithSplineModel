@@ -36,6 +36,7 @@ public:
     void setModelForGraph(AudioBuffer<float>& _modelBuffer);
     void setkVal(int _kVal);
     void setmVal(int _mVal);
+    void setKeys(Array<int>& _keys);
     void setAmplitudeFactor(float _amplitudeFactor);
     
     AudioBuffer<float> floatBuffer;
@@ -50,6 +51,7 @@ public:
     bool graphMetaSplinesOn = false;
     bool plotTargets = false;
     bool hardLeft = true;
+    bool hardRight = true;
     int numSamples = 1000;
     int kVal = 20;
     int mVal = 1;
@@ -72,14 +74,20 @@ public:
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
     Array<int> samplesPerCycle;
+    Array<int> keys;
+    Array<int> keysToAdd;       // key cycle indices to add (by mouse click)
+    Array<int> keysToRemove;       // key cycle indices to remove (by mouse click)
     Array<float> maxSampleIndices;
     Array<float> maxSampleValues;
     Value leftEP;
     Value rightEP;
     Value dragged;
+//    Value zeroSelected
     juce::Point<int> doubleClick;
+    juce::Point<float> zeroPoint;
     juce::Path freeCurve;
     bool drawCurve = false;
+    bool mouseOverCycleZero = false;
     
     juce::Point<float> signalToScreenCoords (juce::Point<float> P);
     juce::Point<float> screenToSignalCoords (juce::Point<float> Q);
@@ -128,7 +136,11 @@ private:
     
     void drawDot(juce::Point<float> (P), juce::Graphics& g);
     
+    void drawLargeDot(juce::Point<float> (P), juce::Graphics& g);
+    
     void mouseWheelMove (const MouseEvent& event, const MouseWheelDetails & wheel) override;
+    
+    void mouseMove (const MouseEvent& event) override;
     
     void mouseMagnify (const MouseEvent & event, float scaleFactor) override;
     
@@ -143,7 +155,8 @@ private:
     void plotTargetPoints(juce::Graphics& g, CycleSpline& cycle);
 
     void plotMetaSplineTargets(juce::Graphics& g);
-
+    
+    bool isKey(int n);
         
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphComponent)

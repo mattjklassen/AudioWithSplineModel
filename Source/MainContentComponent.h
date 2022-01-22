@@ -127,8 +127,9 @@ private:
     
     void mouseDown (const MouseEvent& event) override
     {
-        DBG ("Clicked at: " << event.getPosition().toString());
-        std::cout << "lEP: " << lEP.toString() << "  rEP: " << rEP.toString() << std::endl;
+//        DBG ("Clicked at: " << event.getPosition().toString());
+//        std::cout << "lEP: " << lEP.toString() << "  rEP: " << rEP.toString() << std::endl;
+
     }
     
     void mouseDrag (const MouseEvent& event) override
@@ -219,6 +220,8 @@ private:
     void addScrollbar();
     
     void randomizeButtonClicked();
+    
+    void setInterpSelectionsFalse();
     
     struct fileheader
     {
