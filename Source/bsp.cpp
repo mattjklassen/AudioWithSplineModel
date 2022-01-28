@@ -553,6 +553,9 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     for (int i=0; i<N+1; i++) {
         knotVals.add((i-d) * incr);
     }
+    for (int i=0; i<N+1; i++) {
+        knotVals.set(i, cycle.knots[i]);
+    }
     float a = cycle.a, b = cycle.b;
     int i, h, J;  // J index in DeBoor Algorithm
     int p;  // stage in DeBoor Algorithm

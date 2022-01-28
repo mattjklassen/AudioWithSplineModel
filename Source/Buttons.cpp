@@ -84,6 +84,11 @@ void MainContentComponent::addButtons()
     graphMetaSplinesButton.onClick = [this] { graphMetaSplinesButtonClicked(); };
     graphMetaSplinesButton.setColour (juce::TextButton::buttonColourId, buttonColours[0]);
     
+    addAndMakeVisible (&nextRandomButton);
+    nextRandomButton.setButtonText ("Next Random");
+    nextRandomButton.onClick = [this] { nextRandomButtonClicked(); };
+    nextRandomButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
+    
     addAndMakeVisible (&shadeButton);
     shadeButton.setButtonText ("Shade Cycles");
     shadeButton.onClick = [this] { shadeButtonClicked(); };
@@ -297,7 +302,8 @@ void MainContentComponent::playCycleButtonClicked()
     playModelOn = false;
     oneCycleWithEnvelope = false;
     setSplineArrays();
-    samplesPerSelectedCycle = graphView.cycleToGraph.outputs.size();
+//    samplesPerSelectedCycle = graphView.cycleToGraph.outputs.size();
+    samplesPerSelectedCycle = graphView.cycleNew.outputs.size();
     // toggle playing of selected cycle on/off
     if (playCycleOn) {
         playCycleOn = false;
@@ -363,4 +369,12 @@ void MainContentComponent::randomizeButtonClicked()
         randomizeBcoeffs = false;
         DBG("randomizeBcoeffs is now: false");
     }
+}
+
+void MainContentComponent::nextRandomButtonClicked()
+{
+    if (graphView.graphNewSplineCycle) {
+        graphView.randomizeNewCycle();
+    }
+
 }

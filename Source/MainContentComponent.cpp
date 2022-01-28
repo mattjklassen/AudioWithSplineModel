@@ -23,7 +23,7 @@ MainContentComponent::MainContentComponent()
     lEP.referTo(graphView.leftEP);
     rEP.referTo(graphView.rightEP);
     
-    setSize (1200, 800);
+    setSize (1300, 600);
 
     formatManager.registerBasicFormats();
     transportSource.addChangeListener (this);
@@ -79,6 +79,7 @@ void MainContentComponent::resized()
     playModelButton.setBounds (800, 10, 100, 20);
     playCycleWithEnvButton.setBounds (910, 10, 100, 20);
     graphMetaSplinesButton.setBounds (1020, 10, 100, 20);
+    nextRandomButton.setBounds (1130, 10, 80, 20);
     graphModelButton.setBounds (90, 70, 100, 20);
     interpSelector.setBounds (200, 70, 200, 20);
     normalizeCycleLengthButton.setBounds (410, 70, 200, 20);

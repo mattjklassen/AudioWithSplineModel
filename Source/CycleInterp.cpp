@@ -556,7 +556,8 @@ void MainContentComponent::computeAllCycles()
 void MainContentComponent::setSplineArrays()
 {
     int d = 3;
-    int k = graphView.cycleToGraph.k;
+//    int k = graphView.cycleToGraph.k;
+    int k = kVal;
     int n = k + d;  // dimension of splines, also number of inputs
     int N = n + d;  // last index of knot sequence t_0,...,t_N
     // changing the array of control coeffs to be 3*n rows and 4 cols
@@ -564,13 +565,30 @@ void MainContentComponent::setSplineArrays()
     for (int i=0; i<12*n; i++) {  // (3*n)*4 = rows*cols
         controlCoeffs.set(i, 0);
     }
+    
     float incr = 1 / (float) k;
-    for (int i=0; i<N+1; i++) {
-        knotVals.set(i, (i-d) * incr);
-//        DBG("knot vals [" << i << "] = " << knotVals[i]);
+    if (graphView.graphNewSplineCycle) {
+        // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
+        for (int i=0; i<d+1; i++) {
+            knotVals.set(i, 0);
+        }
+        for (int i=4; i<N-d; i++) {
+            knotVals.set(i, knotVals[i-1]+incr);
+        }
+        for (int i=0; i<d+1; i++) {
+            knotVals.set(i, 1);
+        }
+        
+    } else {
+        for (int i=0; i<N+1; i++) {
+            knotVals.set(i, (i-d) * incr);
+    //        DBG("knot vals [" << i << "] = " << knotVals[i]);
+        }
     }
+
     for (int i=0; i<n; i++) {
-        controlCoeffs.set(4*i, graphView.cycleToGraph.bcoeffs[i]);
+//        controlCoeffs.set(4*i, graphView.cycleToGraph.bcoeffs[i]);
+        controlCoeffs.set(4*i, graphView.cycleNew.bcoeffs[i]);
 //        DBG("control coeffs [" << n*i << "] = " << controlCoeffs[n*i]);
     }
     for (int m=0; m<10; m++) {
@@ -633,6 +651,17 @@ void MainContentComponent::randomizeCycleBcoeffs(int cycleInUse)
 //    }
 //}
 
+void MainContentComponent::randBcoeff(int n)
+{
+    float r = juce::Random::getSystemRandom().nextFloat();
+    r = 2 * r - 1; // random float in [-1,1]
+    r *= 0.1;
+    float val = graphView.cycleNew.bcoeffs[n] + r;
+    if (abs(val) < 0.8) {
+        graphView.cycleNew.bcoeffs.set(n, val);
+    }
+}
+    
 void MainContentComponent::fillBcoeffs()
 {
 //    if (cycleRendered == 0) {

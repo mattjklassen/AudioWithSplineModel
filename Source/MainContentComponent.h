@@ -89,6 +89,8 @@ public:
     
     float computeSpline(int control, float t);
     
+    void randBcoeff(int n);
+    
     bool audioDataLoaded = false;
 
     Value lEP;  // left End Point for graphing interval in graphView
@@ -158,6 +160,8 @@ private:
     void computeModelButtonClicked();
     
     void playModelButtonClicked();
+    
+    void nextRandomButtonClicked();
     
     void playCycleWithEnvButtonClicked();
     
@@ -280,6 +284,7 @@ private:
     juce::Label  mValLabel;
     juce::ComboBox interpSelector;
     juce::Random random;
+    juce::TextButton nextRandomButton;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -329,6 +334,7 @@ private:
     int endIndex = 0;           // index of last cycle to graph
     int control = 0;            // for not randomizing cycles
     int cycleInUse = 0;         // in use by audio callback
+    int bcoeffRandomized = 0;   // changed by audio callback
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;

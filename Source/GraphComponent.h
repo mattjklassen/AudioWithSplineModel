@@ -101,6 +101,8 @@ public:
     
     void graphMetaSplines(juce::Graphics& g);
     
+    void randomizeNewCycle();
+    
     void graphLinearMetaSplines(juce::Graphics& g);
 
     CycleSpline cycleToGraph = CycleSpline(20, 0, 1);
@@ -171,7 +173,7 @@ private:
     
     void computeNewBcoeffs(AudioBuffer<float>& floatBuffer);
         
-    void setNew();
+    void setNewTargets(AudioBuffer<float>& floatBuffer);
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphComponent)

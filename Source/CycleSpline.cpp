@@ -42,7 +42,8 @@ CycleSpline::CycleSpline(int _k, float _a, float _b)
     inputs.add(b - incr / 2);  // inputs[n-2]
     inputs.add(b);             // inputs[n-1]
     
-    knots.add(a - d * incr);
+    incr = 1 / (float) k;
+    knots.add(- d * incr);
     for (int i=1; i<N+1; i++)
     {
         knots.add(knots[i-1] + incr);
@@ -116,7 +117,7 @@ void CycleSpline::printData()
 //    }
     if (inputs.size() > 0) {
         DBG("inputs: ");
-        for (int i=0; i<k+d; i++) {
+        for (int i=0; i<inputs.size(); i++) {
             DBG("inputs[" << i << "] = " << inputs[i]);
         }
     }
@@ -126,7 +127,7 @@ void CycleSpline::printData()
 //    }
     if (targets.size() > 0) {
         DBG("targets: ");
-        for (int i=0; i<k+d; i++) {
+        for (int i=0; i<targets.size(); i++) {
             DBG("targets[" << i << "] = " << targets[i]);
         }
     }

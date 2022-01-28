@@ -43,6 +43,9 @@ void GraphComponent::paint (juce::Graphics& g)
     if (graphSplineCycle) {
         graphSpline(g, cycleToGraph);
     }
+    if (graphNewSplineCycle) {
+        graphSpline(g, cycleNew);
+    }
     if (graphParabolicSpline) {
         graphSpline(g, cycleParabola);
     }
@@ -651,14 +654,15 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         m.addItem (1, "add key cycle");
         m.addItem (2, "remove key cycle");
         m.addItem (3, "graph cycle spline");
-        m.addItem (4, "graph parabolic spline");
+        m.addItem (4, "graph new cycle spline");
         
         const int result = m.show();
         juce::Point<int> P = event.getPosition();
         juce::Point<float> Q (P.getX(),P.getY());
         juce::Point<float> S = screenToSignalCoords(Q);
         int n = getCycleNumber(S.getX());
-
+        DBG("selected cycle: " << n);
+        
         if (result == 0)
         {
             // user dismissed the menu without picking anything
@@ -705,29 +709,84 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         else if (result == 4) {
             float a = cycleZeros[n];
             float b = cycleZeros[n+1];
-            cycleParabola = CycleSpline(kVal, a, b);
-            setParabolicTargets(0.01);
-            computeParabolicBcoeffs();
-            computeCycleSplineOutputs(cycleParabola);
-            graphParabolicSpline = true;
-            repaint();
-            // now playing with new cycleSpline knot sequence: 0,0,0,0,1/k,...,1,1,1,1
-            cycleNew = CycleSpline(kVal, a, b);
-            setNew();
-//            computeNewBcoeffs(floatBuffer);
-//            computeCycleSplineOutputs(cycleNew);
-            cycleNew.printData();
-//            graphNewSplineCycle = true;
-//            graphSplineCycle = false;
+//            cycleParabola = CycleSpline(kVal, a, b);
+//            setParabolicTargets(0.01);
+//            computeParabolicBcoeffs();
+//            computeCycleSplineOutputs(cycleParabola);
+//            graphParabolicSpline = true;
 //            repaint();
+            // new cycleSpline has knot sequence: 0,0,0,0,1/k,...,1,1,1,1
+            DBG("graphing new cycle spline " << n);
+            if (highlightCycle == n) {
+                highlightCycle = -1;
+                graphNewSplineCycle = false;
+                plotTargets = false;
+            } else {
+                highlightCycle = n;
+            }
+            if (highlightCycle == n) {
+                cycleNew = CycleSpline(kVal, a, b);
+                setNewTargets(floatBuffer);
+                computeNewBcoeffs(floatBuffer);
+                computeCycleSplineOutputs(cycleNew);
+                graphNewSplineCycle = true;
+                graphSplineCycle = false;
+                cycles[0] = cycleNew;
+                repaint();
+            }
         }
     }
+}
+
+void GraphComponent::randomizeNewCycle()
+{
+    int n = kVal + 3;
+    
+    // Paul, below is the version that I first showed you, just adding random amounts
+
+    for (int i=2; i<n-2; i++) {
+        float r = juce::Random::getSystemRandom().nextFloat();
+        r = 2 * r - 1; // random float in [-1,1]
+        r *= 0.1;
+        float val = cycleNew.bcoeffs[i] + r;
+        if (abs(val) < 0.8) {
+            cycleNew.bcoeffs.set(i, val);
+        }
+    }
+    
+    // Paul, next is the final example we did together this morning together
+
+//    Array<float> temp;
+//    for (int i=0; i<n; i++) {
+//        temp.set(i, cycleNew.bcoeffs[i]);
+//    }
+//    for (int i=2; i<n-2; i++) {
+//
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        float s = juce::Random::getSystemRandom().nextFloat();
+//        s = 2 * s - 1; // random float in [-1,1]
+//        s *= 0.1;
+//        float a1 = temp[i-1];
+//        float a2 = temp[i];
+//        float a3 = temp[i+1];
+//        float h = 4; // / (float) kVal;
+//        float val = (a3 - 2*a2 + a1) / h;
+//        if (r < 0.1) {
+//            val += s;
+//        }
+//        cycleNew.bcoeffs.set(i, val);
+
+    computeCycleSplineOutputs(cycleNew);
+    graphNewSplineCycle = true;
+    graphSplineCycle = false;
+    repaint();
 }
 
 void GraphComponent::computeNewBcoeffs(AudioBuffer<float>& floatBuffer)
 {
     // assume bcoeffs[0] = bcoeffs[n-1] = 0, and compute the other n-2
     // this means B-spline graph will hit target 0 at the ends
+    // also bcoeffs[1] and bcoeffs[n-2] control the derivatives at the ends
     int k = cycleNew.k, d = cycleNew.d;
     int n = k + d;  // n is full dimension
     float val = 0;
@@ -841,9 +900,8 @@ void GraphComponent::mouseMove (const MouseEvent& event)
     }
 }
 
-void GraphComponent::setNew()
+void GraphComponent::setNewTargets(AudioBuffer<float>& floatBuffer)
 {
-    cycleNew = CycleSpline(kVal, 0, 1);
     int k = cycleNew.k;
     int d = cycleNew.d;
     int n = k + d;
@@ -877,6 +935,14 @@ void GraphComponent::setNew()
     // in function computeNewBcoeffs
     for (int i=0; i<n; i++) {
         cycleNew.bcoeffs.add(0);
+    }
+    
+    float a = cycleNew.a;
+    float b = cycleNew.b;
+    for (int i=0; i<n-2; i++) {
+        float t = cycleNew.inputs[i];
+        float output = interpFloat(a + t * (b-a), floatBuffer);
+        cycleNew.targets.set(i, output);
     }
     
     DBG("New params set for CycleSpline knot sequence: ");

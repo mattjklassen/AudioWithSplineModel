@@ -106,6 +106,12 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
         auto Pi = juce::MathConstants<double>::pi;
         auto localTargetFrequency = targetFrequency;
         auto frequencyIncrement = (localTargetFrequency - currentFrequency) / bufferToFill.numSamples;
+        int n = kVal + 3;
+        bcoeffRandomized += 1;
+//        randBcoeff(bcoeffRandomized);
+        if (bcoeffRandomized == n) {
+            bcoeffRandomized = 0;
+        }
         for (auto sample = 0; sample < bufferToFill.numSamples; ++sample)
         {
             // compute currentSample value with spline of selected cycle:
@@ -116,21 +122,15 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
                     control = 0;
                 }
             }
+            control = 0;
             float currentSample = computeSpline(control, currentAngle / (2 * Pi));
             leftBuffer[sample]  = currentSample;
             rightBuffer[sample] = currentSample;
-//            sampleRendered += 1;
-//            if (sampleRendered == samplesPerSelectedCycle - 1) {
-//                sampleRendered = 0;
-//                cycleRendered = control;
-//                if (randomizeBcoeffs) {
-//                    control += 1;
-//                    DBG("control = " << control);
-//                    if (control == 10) {
-//                        control = 0;
-//                    }
-//                }
-//            }
+            sampleRendered += 1;
+            if (sampleRendered == samplesPerSelectedCycle - 1) {
+                sampleRendered = 0;
+            }
+
             currentFrequency += frequencyIncrement;
             currentAngle += angleDelta;
         }
