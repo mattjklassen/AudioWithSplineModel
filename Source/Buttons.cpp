@@ -125,11 +125,11 @@ void MainContentComponent::addButtons()
     normalizeCycleLengthButton.onClick = [this] { normalizeCycleLengthButtonClicked(); };
     normalizeCycleLengthButton.changeWidthToFitText();
     
-//    addAndMakeVisible (&randomizeButton);
-//    randomizeButton.setButtonText ("Randomize");
-//    randomizeButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
-//    randomizeButton.onClick = [this] { randomizeButtonClicked(); };
-//    randomizeButton.changeWidthToFitText();
+    addAndMakeVisible (&randomizeButton);
+    randomizeButton.setButtonText ("Randomize");
+    randomizeButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
+    randomizeButton.onClick = [this] { randomizeButtonClicked(); };
+    randomizeButton.changeWidthToFitText();
     
     addAndMakeVisible (interpSelector);
     interpSelector.addItem ("Regular Cycle Interp",  1);

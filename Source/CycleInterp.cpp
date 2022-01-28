@@ -256,6 +256,7 @@ void MainContentComponent::computeKeyCycles()
 void MainContentComponent::writeKeyCyclesToBuffer()
 {
     DBG("computing and writing key cycles");
+//    float Pi = juce::MathConstants<float>::pi;
     keyCycleArray.clear();
     writeBuffer.clear();
     writeBuffer.setSize(1, lastSample+1);  // channels, samples
@@ -264,6 +265,11 @@ void MainContentComponent::writeKeyCyclesToBuffer()
     int k = kVal;
     int d = dVal;
     int n = k + d;  // dim of cycle splines
+    if (addSubharmonic) {
+        cycleParabola = CycleSpline(kVal, a, b);
+        setParabolicTargets(0.005);
+        computeParabolicBcoeffs();
+    }
     // compute key cycles and write outputs to buffer
     for (int i=0; i<keys.size(); i++)
     {
@@ -273,14 +279,31 @@ void MainContentComponent::writeKeyCyclesToBuffer()
         // compute each key cycle bcoeffs and store in array of floats
         computeCycleBcoeffs(cycle, floatBuffer);
         for (int p=0; p<n; p++) {
-            keyBcoeffs.set(i*n+p, cycle.bcoeffs[p]);
+            float val = cycle.bcoeffs[p];
+            keyBcoeffs.set(i*n+p, val);
+            if (addSubharmonic) {
+                if (i % 2 == 0) {
+                    val += cycleParabola.bcoeffs[p];
+                } else {
+                    val -= cycleParabola.bcoeffs[p];
+                }
+                cycle.bcoeffs.set(p, val);
+            }
         }
         computeCycleSplineOutputs(cycle);
         int M = cycle.outputs.size();
         int L = ((int)a) + 1;  // first sample index to write
 //        DBG("M:  " << M << "  L:  " << L);
         for (int j=0; j<M; j++) {
-            writeBuffer.setSample(0, j+L, cycle.outputs[j]);
+            float value = cycle.outputs[j];
+            // adding subharmonic
+//            float t = (float) (a+j+L);
+//            if (keys[i] % 2 == 0) {
+//                value += 0.01 * std::sinf(Pi * (t-a)/(b-a));
+//            } else {
+//                value -= 0.01 * std::sinf(Pi * (t-a)/(b-a));
+//            }
+            writeBuffer.setSample(0, j+L, value);
         }
         keyCycleArray.add(cycle);
     }
@@ -373,11 +396,17 @@ void MainContentComponent::writeNormalizedCyclesToBuffer()
 void MainContentComponent::writeNonKeyCyclesToBuffer()
 {
     DBG("computing and writing non-key cycles");
+//    float Pi = juce::MathConstants<float>::pi;
     int i = 0;
     float a = 0, b=1, ratio = 1;
     CycleSpline cycle;
     CycleSpline secondLastKeyCycle = keyCycleArray[keyCycleArray.size()-2];
     int n = kVal + dVal;
+    if (addSubharmonic) {
+        cycleParabola = CycleSpline(kVal, a, b);
+        setParabolicTargets(0.005);
+        computeParabolicBcoeffs();
+    }
     while (i < numCycles) {
         if (isKey(i)) {
             // key cycles already written
@@ -406,6 +435,15 @@ void MainContentComponent::writeNonKeyCyclesToBuffer()
 //            }
             for (int j=0; j<n; j++) {
                 cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+                if (addSubharmonic) {
+                    float val = cycle.bcoeffs[j];
+                    if (i % 2 == 0) {
+                        val += cycleParabola.bcoeffs[j];
+                    } else {
+                        val -= cycleParabola.bcoeffs[j];
+                    }
+                    cycle.bcoeffs.set(j, val);
+                }
             }
             computeCycleSplineOutputs(cycle);
             if (useEnvelope) {
@@ -416,11 +454,19 @@ void MainContentComponent::writeNonKeyCyclesToBuffer()
                 }
             }
             // DBG("cycle number:  " << i);
-            // cycle.printData();
+            ratio = 1;  // to ignore ratio factor for cycles
             int M = cycle.outputs.size();
             int L = ((int)a) + 1;  // first sample index to write
             for (int j=0; j<M; j++) {
-                writeBuffer.setSample(0, j+L, ratio * cycle.outputs[j]);
+                float value = ratio * cycle.outputs[j];
+                // adding subharmonic
+//                float t = (float) (a+j+L);
+//                if (i % 2 == 0) {
+//                    value += 0.01 * std::sinf(Pi * (t-a)/(b-a));
+//                } else {
+//                    value -= 0.01 * std::sinf(Pi * (t-a)/(b-a));
+//                }
+                writeBuffer.setSample(0, j+L, value);
             }
             i += 1;
         }
@@ -534,28 +580,58 @@ void MainContentComponent::setSplineArrays()
     }
 }
 
-void MainContentComponent::randomizeCycleBcoeffs(int cycleRendered)
+// randomize bcoeffs in controlCoeffs array depending on which part is in use
+// so that we can change the cycle with UI as it is playing
+// for this to work, we need to first specify continuity conditions at the ends
+// of the interval. This could be simply that we preserve the zero value at
+// the ends, and also the slopes.  It might work to also randomize in such a way
+// that the slope can change but still remain consistent at the ends.
+void MainContentComponent::randomizeCycleBcoeffs(int cycleInUse)
 {
-    // randomize bcoeffs for cycle[i], i = cycleRendered + 5 (mod 10)
-    int i = cycleRendered;
-    i += 5;
-    i = i % 10;  // i is now index of cycle to randomize in controlCoeffs
-//    CycleSpline cycle = graphView.cycles[i];
-//    for (int j=0; j<cycle.bcoeffs.size(); j++) {
-//        float r = juce::Random::getSystemRandom().nextFloat();
-//        r = 2 * r - 1; // random float in [-1,1]
-//        r *= 0.001;
-//        cycle.bcoeffs.set(j, cycle.bcoeffs[i] + r);
-//    }
-//    // copy cycle.bcoeffs to controlCoeffs:
+    // randomize bcoeffs for cycle[i], where i is not in use
+    // cycleInUse is 0 if controlCoeffs first part is playing
+    int i = 0, j = 1;
+    if (cycleInUse == 0) {
+        i = 1;
+        j = 0;
+    }
     int n = dVal + kVal;
     for (int p=0; p<n; p++) {
         float r = juce::Random::getSystemRandom().nextFloat();
         r = 2 * r - 1; // random float in [-1,1]
-        r *= 0.001;
-        controlCoeffs.set(4*(p+i*n), controlCoeffs[4*(p+i*n)] + r);
+        r *= 0.05;
+        controlCoeffs.set(4*(p+i*n), controlCoeffs[4*(p+j*n)] + r);
+    }
+    if (cycleInUse == 0) {
+        cycleInUse = 1;
+    } else {
+        cycleInUse = 0;
     }
 }
+
+// previous version
+//void MainContentComponent::randomizeCycleBcoeffs(int cycleRendered)
+//{
+//    // randomize bcoeffs for cycle[i], i = cycleRendered + 5 (mod 10)
+//    int i = cycleRendered;
+//    i += 5;
+//    i = i % 10;  // i is now index of cycle to randomize in controlCoeffs
+////    CycleSpline cycle = graphView.cycles[i];
+////    for (int j=0; j<cycle.bcoeffs.size(); j++) {
+////        float r = juce::Random::getSystemRandom().nextFloat();
+////        r = 2 * r - 1; // random float in [-1,1]
+////        r *= 0.001;
+////        cycle.bcoeffs.set(j, cycle.bcoeffs[i] + r);
+////    }
+////    // copy cycle.bcoeffs to controlCoeffs:
+//    int n = dVal + kVal;
+//    for (int p=0; p<n; p++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        r = 2 * r - 1; // random float in [-1,1]
+//        r *= 0.05;
+//        controlCoeffs.set(4*(p+i*n), controlCoeffs[4*(p+i*n)] + r);
+//    }
+//}
 
 void MainContentComponent::fillBcoeffs()
 {
@@ -567,6 +643,7 @@ void MainContentComponent::fillBcoeffs()
 float MainContentComponent::computeSpline(int control, float t)
 {
     // assume t is in [0,1] and output is 0 at the ends
+    // this function is called in the audio callback getNextAudioBlock()
     int m = control;
 //    m = 0;  // set this to use only cycles[0] in graphView setSplineArrays
             // ignore the other cycles in controlCoeffs
@@ -576,8 +653,6 @@ float MainContentComponent::computeSpline(int control, float t)
     int J = 0;
     int n = k + d;  // dimension of splines, also number of inputs
     int N = n + d;  // last index of knot sequence t_0,...,t_N
-//    juce::Array<float> controlCoeffs and knotVals are created and updated outside this function
-//    in order to keep those out of the AudioCallback, increasing efficiency dramatically.
     if ((t > 0) && (t < 1)) {
         for (int i=1; i<N; i++)
         {

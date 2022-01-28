@@ -223,6 +223,14 @@ private:
     
     void setInterpSelectionsFalse();
     
+    void setParabolicTargets(float scale);
+    
+    void computeParabolicBcoeffs();
+    
+    CycleSpline cycleParabola = CycleSpline(20, 0, 1);
+    
+    void setNew(CycleSpline& cycle);
+    
     struct fileheader
     {
         char riff_label[4]; // (00) = {'R','I','F','F'}
@@ -320,6 +328,7 @@ private:
     int startIndex = 0;         // index of first cycle to graph
     int endIndex = 0;           // index of last cycle to graph
     int control = 0;            // for not randomizing cycles
+    int cycleInUse = 0;         // in use by audio callback
     Array<juce::Colour> buttonColours;
     juce::Point<int> doubleClick;
     GraphComponent graphView;
@@ -333,6 +342,7 @@ private:
     bool regularCycleInterp = true;
     bool endsOnlyCycleInterp = false;
     bool normalizeCycleLength = false;
+    bool addSubharmonic = true;
     bool useEnvelope = true;
     bool randomizeBcoeffs = false;
     bool keysWithoutCycleInterp = false;

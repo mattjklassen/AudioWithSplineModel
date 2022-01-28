@@ -127,7 +127,14 @@ void MainContentComponent::computeZeros()
         normalizedCycleZeros.set(i, cycleZeros[1] * i);
     }
     samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
+    float averageSamplesPerCycle = cycleZeros[cycleZeros.size()-1] / (float) cycleZeros.size();
+    DBG("average samples per cycle:  " << averageSamplesPerCycle);
+    DBG("number of zeros:  " << numAllZeros);
     DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+//    samplesPerCycle.sort();
+//    for (int i=0; i<samplesPerCycle.size()-1; i++) {
+//        cout << samplesPerCycle[i] << " ";
+//    }
 }
 
 void MainContentComponent::reComputeZeros()
@@ -135,6 +142,10 @@ void MainContentComponent::reComputeZeros()
     int freq = (int) freqGuess;     // = guess at frequency in Hz
     float lengthInSeconds = (float)sampleCount / (float)sampleRate;
     int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
+    numCycles = periods;
+    DBG("numCycles:  " << numCycles);
+    int numKeyCycles = (int) ((float)numCycles / (float)mVal);
+    DBG("numKeyCycles:  " << numKeyCycles);
     int numAllZeros = allZeros.size() - 1;
     float lastZero = allZeros[numAllZeros];
     cycleZeros.clear();
@@ -207,4 +218,105 @@ void MainContentComponent::valueChanged (Value &value)
     }
 }
 
+void MainContentComponent::setNew(CycleSpline& cycle)
+{
+    int k = cycle.k;
+    int d = cycle.d;
+    int n = k + d;
+    int N = n + d;
+    cycle.inputs.clear();
+    cycle.targets.clear();
+    cycle.knots.clear();
+    
+    float incr = 1 / (float) k;
+    cycle.inputs.add(0.5*incr);
+    for (int i=1; i<k; i++) {
+        cycle.inputs.add(i*incr);
+    }
+    cycle.inputs.add(1-0.5*incr);
+    
+    // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
+    for (int i=0; i<d+1; i++) {
+        cycle.knots.add(0);
+    }
+    for (int i=1; i<k; i++) {
+        cycle.knots.add(cycle.knots[i-1]+incr);
+    }
+    for (int i=0; i<d+1; i++) {
+        cycle.knots.add(1);
+    }
+    DBG("New params set for CycleSpline knot sequence: ");
+    DBG("N = " << N << "n = " << n << "k = " << k);
+    for (int i=0; i<N+1; i++) {
+        std::cout << cycle.knots[i] << " ";
+    }
+    DBG("");
+}
 
+void MainContentComponent::setParabolicTargets(float scale)
+{
+    int k = cycleParabola.k;
+    int d = cycleParabola.d;
+    int n = k + d;
+    
+    cycleParabola.inputs.clear();
+    cycleParabola.targets.clear();
+    cycleParabola.knots.clear();
+    
+    float incr = 1 / (float) k;
+    cycleParabola.inputs.add(0);
+    cycleParabola.inputs.add(0.5*incr);
+    for (int i=1; i<k; i++) {
+        cycleParabola.inputs.add(i*incr);
+    }
+    cycleParabola.inputs.add(1-0.5*incr);
+    cycleParabola.inputs.add(1);
+    
+    for (int i=0; i<cycleParabola.inputs.size(); i++) {
+        float t = cycleParabola.inputs[i];
+//        float scale = 0.1;
+        cycleParabola.targets.set(i, scale*4*t*(1-t));
+    }
+    cycleParabola.knots.add(-d*incr);
+    for (int i=1; i<n; i++) {
+        cycleParabola.knots.add(cycleParabola.knots[i-1]+incr);
+    }
+}
+
+void MainContentComponent::computeParabolicBcoeffs()
+{
+    int k = cycleParabola.k, d = cycleParabola.d;
+    int n = k + d;
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<n*n; i++) {
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            val = bSplineVal(k, j, cycleParabola.inputs[i]);  // A[i,j]
+            A.set(i*n+j, val);
+            temp.set(i*n+j, val);
+            B.set(i*n+j, 0);
+        }
+    }
+    for (int i=0; i<n; i++) {
+        B.set(i*n+i, 1.0);
+    }
+
+    gaussElim(n, temp, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    y = multMatCol(n, B, cycleParabola.targets);
+    for (int i=0; i<n; i++) {
+        cycleParabola.bcoeffs.set(i, y[i]);
+    }
+}

@@ -345,9 +345,67 @@ int old_main(int argc, char *argv[])
 
 }  // end main
 
-// new functions for JUCE version
+// new functions for JUCE version Oct 2021
 
 // compute B-spline value at t in [0,1] for basis with k subintervals on [0,1], d=3
+
+float newBsplineVal(int k, int j, float t)
+{
+    // here assume new knot sequence 0,0,0,0,1/k,...,1,1,1,1
+    // so we compute with cycleNew and assume outer two bcoeffs = 0
+    // also assume 0 < t < 1
+    int d = 3;      // assumed
+    int n = k + d;  // dimension of splines
+    int N = n + d;  // last index of knot sequence
+    juce::Array<float> controlCoeffs;
+    for (int i=0; i<n*n; i++) {
+        controlCoeffs.add(0);
+    }
+    controlCoeffs.set(n*j, 1);
+    
+    float incr = 1 / (float) k;
+    juce::Array<float> knotVals;
+
+    for (int i=0; i<d+1; i++) {
+        knotVals.add(0);
+    }
+    for (int i=4; i<N-d; i++) {
+        knotVals.add(knotVals[i-1]+incr);
+    }
+    for (int i=0; i<d+1; i++) {
+        knotVals.add(1);
+    }
+    
+    int i, J;  // J index in DeBoor Algorithm
+    int p;  // stage in DeBoor Algorithm
+    float denom, fac1, fac2, fval;
+
+    fval = 0.0f;
+    for (i=1; i<N; i++)
+    {
+        if (t < knotVals[i]) {
+            J = i-1;
+            if (J > n-1) {
+                J = n-1;
+            }
+//            DBG("DeBoor J: " << J);
+            break;
+        }
+    }
+    for (p=1; p<d+1; p++)
+    {
+        for (i=J-d+p; i<J+1; i++)
+        {
+           denom = (knotVals[i+d-(p-1)]-knotVals[i]);
+           fac1 = (t-knotVals[i]) / denom;
+           fac2 = (knotVals[i+d-(p-1)]-t) / denom;
+           controlCoeffs.set((k+d)*i+p, fac1 * controlCoeffs[(k+d)*i+(p-1)]
+              + fac2 * controlCoeffs[(k+d)*(i-1)+(p-1)]);
+        }
+    }
+    fval = controlCoeffs[(k+d)*J+d];
+    return fval;
+}
 
 float bSplineVal(int k, int j, float t)
 {
@@ -415,6 +473,13 @@ void computeLinearMetaSplineOutputs(MetaSpline& spline)
         float t0 = spline.inputs[j-1], t1 = spline.inputs[j];
         float y0 = spline.targets[j-1], y1 = spline.targets[j];
         y = (t-t0)/(t1-t0) * y1 + (t1-t)/(t1-t0) * y0;
+        // add subharmonic simuation:
+//        if (i % 2 == 0) {
+//            y += 0.01;
+//        } else {
+//            y -= 0.01;
+//        }
+        // end subharmonic
         spline.outputs.set(i, y);
     }
 }

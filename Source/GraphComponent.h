@@ -48,6 +48,7 @@ public:
     bool cyclesToGraph = false;
     bool callShadeCycles = false;
     bool graphSplineCycle = false;
+    bool graphNewSplineCycle = false;
     bool graphMetaSplinesOn = false;
     bool plotTargets = false;
     bool hardLeft = true;
@@ -104,6 +105,10 @@ public:
 
     CycleSpline cycleToGraph = CycleSpline(20, 0, 1);
     
+    CycleSpline cycleParabola = CycleSpline(20, 0, 1);
+    
+    CycleSpline cycleNew = CycleSpline(20, 0, 1);
+    
 //    Array<CycleSpline> cyclesToPlay;
     
     Array<MetaSpline> metaSplineArray;
@@ -157,7 +162,17 @@ private:
     void plotMetaSplineTargets(juce::Graphics& g);
     
     bool isKey(int n);
+    
+    void setParabolicTargets(float scale);
+    
+    bool graphParabolicSpline = false;
+    
+    void computeParabolicBcoeffs();
+    
+    void computeNewBcoeffs(AudioBuffer<float>& floatBuffer);
         
+    void setNew();
+    
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphComponent)
 };

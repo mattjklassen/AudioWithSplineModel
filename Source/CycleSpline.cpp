@@ -114,21 +114,27 @@ void CycleSpline::printData()
 //    for (int i=0; i<k+1; i++) {
 //        DBG("u[" << i << "] = " << subintervals[i]);
 //    }
-    DBG("inputs: ");
-    for (int i=0; i<k+d; i++) {
-        DBG("inputs[" << i << "] = " << inputs[i]);
+    if (inputs.size() > 0) {
+        DBG("inputs: ");
+        for (int i=0; i<k+d; i++) {
+            DBG("inputs[" << i << "] = " << inputs[i]);
+        }
     }
 //    DBG("diffs: ");
 //    for (int i=1; i<k+d; i++) {
 //        DBG("back diffs[" << i << "] = " << inputs[i] - inputs[i-1]);
 //    }
-//    DBG("targets: ");
-//    for (int i=0; i<k+d; i++) {
-//        DBG("targets[" << i << "] = " << targets[i]);
-//    }
-    DBG("knots: ");
-    for (int i=0; i<k+2*d; i++) {
-        DBG("knots[" << i << "] = " << knots[i]);
+    if (targets.size() > 0) {
+        DBG("targets: ");
+        for (int i=0; i<k+d; i++) {
+            DBG("targets[" << i << "] = " << targets[i]);
+        }
+    }
+    if (knots.size() > 0) {
+        DBG("knots: ");
+        for (int i=0; i<k+2*d+1; i++) {
+            DBG("knots[" << i << "] = " << knots[i]);
+        }
     }
     if (bcoeffs.size() > 0) {
         DBG("bcoeffs: ");

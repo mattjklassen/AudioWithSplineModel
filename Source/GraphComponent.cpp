@@ -43,6 +43,9 @@ void GraphComponent::paint (juce::Graphics& g)
     if (graphSplineCycle) {
         graphSpline(g, cycleToGraph);
     }
+    if (graphParabolicSpline) {
+        graphSpline(g, cycleParabola);
+    }
     if (plotTargets) {
         plotTargetPoints(g, cycleToGraph);
     }
@@ -256,7 +259,7 @@ void GraphComponent::graphSignal(juce::Graphics& g)
             drawDot(juce::Point<float> (x,y), g);
         }
         if (updateModelGraph) {
-            s = modelBuffer.getSample(0, juce::jmin(j, modelBuffer.getNumSamples() - 1));
+            s = modelBuffer.getSample(0, j);
             s *= amplitudeFactor;
             y = (1 - s) * h/2;
             modelGraph.lineTo (juce::Point<float> (x,y));
@@ -370,6 +373,7 @@ void GraphComponent::graphSpline (juce::Graphics& g, CycleSpline& cycle)
     g.setColour (juce::Colours::blue);
     g.strokePath (graph, myType);
 }
+
 
 int GraphComponent::getMult(int numSamples) {
     int mult = 1;
@@ -563,33 +567,12 @@ void GraphComponent::mouseDoubleClick (const MouseEvent& event)
         computeCycleSplineOutputs(cycleToGraph);
 //        cycleToGraph.printData();
         graphSplineCycle = true;
-//        DBG("max index: " << maxSampleIndices[n]);
-//        DBG("max value: " << maxSampleValues[n]);
 
         // How many cycles do we need in this array in order to render one chunk
         // while modifying others?  One call to audio callback could require 5 or
         // more of these cycles if they are around 100 samples each.  So maybe 10?
         
         cycles[0] = cycleToGraph;
-//        cycles[1] = cycleToGraph;
-//        cycles[2] = cycleToGraph;
-        
-        // below was setup for rendering cycles continuously as cycles[i] i=0,1,2
-        // with the idea of modifying one cycle as another is playing
-//        int j = 1;
-//        int m = n + j;
-//        a = cycleZeros[m];
-//        b = cycleZeros[m+1];
-//        cycles[1] = CycleSpline(kVal, a, b);
-//        computeCycleBcoeffs(cycles[1], floatBuffer);
-//        m = m + j;
-//        a = cycleZeros[m];
-//        b = cycleZeros[m+1];
-//        cycles[2] = CycleSpline(kVal, a, b);
-//        computeCycleBcoeffs(cycles[2], floatBuffer);
-        
-//        cyclesToPlay.add(cycleToGraph);
-//        DBG("added selected cycle to cyclesToPlay");
     }
     repaint();
 }
@@ -630,6 +613,33 @@ void GraphComponent::plotTargetPoints(juce::Graphics& g, CycleSpline& cycle)
     repaint();
 }
 
+void GraphComponent::setParabolicTargets(float scale)
+{
+    int k = cycleParabola.k;
+    int d = cycleParabola.d;
+    int n = k + d;
+    int N = n + d;
+    cycleParabola.inputs.clear();
+    cycleParabola.targets.clear();
+    cycleParabola.knots.clear();
+    float incr = 1 / (float) k;
+    cycleParabola.inputs.add(0);
+    cycleParabola.inputs.add(0.5*incr);
+    for (int i=1; i<k; i++) {
+        cycleParabola.inputs.add(i*incr);
+    }
+    cycleParabola.inputs.add(1-0.5*incr);
+    cycleParabola.inputs.add(1);
+    for (int i=0; i<cycleParabola.inputs.size(); i++) {
+        float t = cycleParabola.inputs[i];
+        cycleParabola.targets.set(i, scale*4*t*(1-t));
+    }
+    cycleParabola.knots.add(-d*incr);  // knot t_0
+    for (int i=1; i<N+1; i++) {
+        cycleParabola.knots.add(cycleParabola.knots[i-1]+incr);
+    }
+}
+
 void GraphComponent::mouseDown (const MouseEvent& event)
 {
     // need to capture mouse hover when near a cycle zero on the timeline and highlight zero
@@ -641,6 +651,7 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         m.addItem (1, "add key cycle");
         m.addItem (2, "remove key cycle");
         m.addItem (3, "graph cycle spline");
+        m.addItem (4, "graph parabolic spline");
         
         const int result = m.show();
         juce::Point<int> P = event.getPosition();
@@ -686,10 +697,114 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 computeCycleBcoeffs(cycleToGraph, floatBuffer);
                 computeCycleSplineOutputs(cycleToGraph);
                 graphSplineCycle = true;
+                graphNewSplineCycle = false;
                 cycles[0] = cycleToGraph;
             }
             repaint();
         }
+        else if (result == 4) {
+            float a = cycleZeros[n];
+            float b = cycleZeros[n+1];
+            cycleParabola = CycleSpline(kVal, a, b);
+            setParabolicTargets(0.01);
+            computeParabolicBcoeffs();
+            computeCycleSplineOutputs(cycleParabola);
+            graphParabolicSpline = true;
+            repaint();
+            // now playing with new cycleSpline knot sequence: 0,0,0,0,1/k,...,1,1,1,1
+            cycleNew = CycleSpline(kVal, a, b);
+            setNew();
+//            computeNewBcoeffs(floatBuffer);
+//            computeCycleSplineOutputs(cycleNew);
+            cycleNew.printData();
+//            graphNewSplineCycle = true;
+//            graphSplineCycle = false;
+//            repaint();
+        }
+    }
+}
+
+void GraphComponent::computeNewBcoeffs(AudioBuffer<float>& floatBuffer)
+{
+    // assume bcoeffs[0] = bcoeffs[n-1] = 0, and compute the other n-2
+    // this means B-spline graph will hit target 0 at the ends
+    int k = cycleNew.k, d = cycleNew.d;
+    int n = k + d;  // n is full dimension
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<(n-2)*(n-2); i++) {  // A is n-2 x n-2
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+    // linear system rows i, columns j to solve for c_1 ... c_{n-2}
+    // in system Ax=b these are indexed 0 ... n-3
+    // the entry A[i,j] should be B^3_j(s_i) for input s_i, but B-splines
+    // are shifted forward by one index, so B^3_{j+1}(s_i)
+    for (int i=0; i<n-2; i++) {
+        for (int j=0; j<n-2; j++) {
+            // shift j up by one since newBsplineVal works with nxn system
+            // and outer inputs are 0 and 1 with targets 0 already achieved
+            val = newBsplineVal(k, j+1, cycleNew.inputs[i]);  // A[i,j]
+            A.set(i*(n-2)+j, val);
+            temp.set(i*(n-2)+j, val);
+            B.set(i*(n-2)+j, 0);
+        }
+    }
+    for (int i=0; i<n-2; i++) {
+        B.set(i*(n-2)+i, 1.0);
+    }
+
+    gaussElim(n-2, temp, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n-2; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    y = multMatCol(n-2, B, cycleNew.targets);
+    for (int i=1; i<n-1; i++) {
+        cycleNew.bcoeffs.set(i, y[i-1]);
+    }
+}
+
+void GraphComponent::computeParabolicBcoeffs()
+{
+    int k = cycleParabola.k, d = cycleParabola.d;
+    int n = k + d;
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<n*n; i++) {
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            val = bSplineVal(k, j, cycleParabola.inputs[i]);  // A[i,j]
+            A.set(i*n+j, val);
+            temp.set(i*n+j, val);
+            B.set(i*n+j, 0);
+        }
+    }
+    for (int i=0; i<n; i++) {
+        B.set(i*n+i, 1.0);
+    }
+
+    gaussElim(n, temp, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    y = multMatCol(n, B, cycleParabola.targets);
+    for (int i=0; i<n; i++) {
+        cycleParabola.bcoeffs.set(i, y[i]);
     }
 }
 
@@ -724,4 +839,50 @@ void GraphComponent::mouseMove (const MouseEvent& event)
         }
         repaint();
     }
+}
+
+void GraphComponent::setNew()
+{
+    cycleNew = CycleSpline(kVal, 0, 1);
+    int k = cycleNew.k;
+    int d = cycleNew.d;
+    int n = k + d;
+    int N = n + d;
+    cycleNew.inputs.clear();
+    cycleNew.targets.clear();
+    cycleNew.knots.clear();
+    cycleNew.bcoeffs.clear();
+    DBG("printData after clear:");
+    cycleNew.printData();
+    
+    float incr = 1 / (float) k;
+    cycleNew.inputs.add(0.5*incr);
+    for (int i=1; i<k; i++) {
+        cycleNew.inputs.add(i*incr);
+    }
+    cycleNew.inputs.add(1-0.5*incr);
+    
+    // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
+    for (int i=0; i<d+1; i++) {
+        cycleNew.knots.add(0);
+    }
+    for (int i=4; i<N-d; i++) {
+        cycleNew.knots.add(cycleNew.knots[i-1]+incr);
+    }
+    for (int i=0; i<d+1; i++) {
+        cycleNew.knots.add(1);
+    }
+    
+    // set bcoeffs to 0 then will compute n-2 of them c_1,...,c_{n-1}
+    // in function computeNewBcoeffs
+    for (int i=0; i<n; i++) {
+        cycleNew.bcoeffs.add(0);
+    }
+    
+    DBG("New params set for CycleSpline knot sequence: ");
+    DBG("N = " << N << " n = " << n << " k = " << k);
+    for (int i=0; i<N+1; i++) {
+        std::cout << cycleNew.knots[i] << " ";
+    }
+    DBG("");
 }

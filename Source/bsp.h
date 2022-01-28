@@ -62,4 +62,4 @@ void computeMetaSplineOutputs(MetaSpline& spline);
 void computeLinearMetaSplineOutputs(MetaSpline& spline);
 void computeMetaSplineBcoeffs(MetaSpline& spline);
 float bSplineVal(int k, int j, float t);
-
+float newBsplineVal(int k, int j, float t);

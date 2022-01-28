@@ -111,6 +111,10 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
             // compute currentSample value with spline of selected cycle:
             if (currentAngle > 2.0 * Pi) {
                 currentAngle -= 2.0 * Pi;
+                control += 1;
+                if (control > 1) {
+                    control = 0;
+                }
             }
             float currentSample = computeSpline(control, currentAngle / (2 * Pi));
             leftBuffer[sample]  = currentSample;
