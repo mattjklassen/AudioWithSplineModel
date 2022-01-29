@@ -702,6 +702,7 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 computeCycleSplineOutputs(cycleToGraph);
                 graphSplineCycle = true;
                 graphNewSplineCycle = false;
+                cycleToGraph.printData();
                 cycles[0] = cycleToGraph;
             }
             repaint();
@@ -732,6 +733,7 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 graphNewSplineCycle = true;
                 graphSplineCycle = false;
                 cycles[0] = cycleNew;
+                cycleNew.printData();
                 repaint();
             }
         }
@@ -754,7 +756,18 @@ void GraphComponent::randomizeNewCycle()
         }
     }
     
-    // Paul, next is the final example we did together this morning together
+    // this is one is basically a low pass filter
+//    for (int i=2; i<n-2; i++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        r = 2 * r - 1; // random float in [-1,1]
+//        r *= 0.1;
+//        float val = (cycleNew.bcoeffs[i] + cycleNew.bcoeffs[i-1])/2;
+//        if (abs(val) < 0.9) {
+//            cycleNew.bcoeffs.set(i, val);
+//        }
+//    }
+    
+    // Paul, next is the final example we did together this morning
 
 //    Array<float> temp;
 //    for (int i=0; i<n; i++) {
@@ -775,7 +788,7 @@ void GraphComponent::randomizeNewCycle()
 //            val += s;
 //        }
 //        cycleNew.bcoeffs.set(i, val);
-
+//    }
     computeCycleSplineOutputs(cycleNew);
     graphNewSplineCycle = true;
     graphSplineCycle = false;

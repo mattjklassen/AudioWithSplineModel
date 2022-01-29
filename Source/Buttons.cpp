@@ -302,8 +302,11 @@ void MainContentComponent::playCycleButtonClicked()
     playModelOn = false;
     oneCycleWithEnvelope = false;
     setSplineArrays();
-//    samplesPerSelectedCycle = graphView.cycleToGraph.outputs.size();
-    samplesPerSelectedCycle = graphView.cycleNew.outputs.size();
+    if (graphView.graphNewSplineCycle) {
+        samplesPerSelectedCycle = graphView.cycleNew.outputs.size();
+    } else {
+        samplesPerSelectedCycle = graphView.cycleToGraph.outputs.size();
+    }
     // toggle playing of selected cycle on/off
     if (playCycleOn) {
         playCycleOn = false;
@@ -375,6 +378,12 @@ void MainContentComponent::nextRandomButtonClicked()
 {
     if (graphView.graphNewSplineCycle) {
         graphView.randomizeNewCycle();
+        int n = kVal + 3;
+        for (int i=0; i<n; i++) {
+            if (graphView.graphNewSplineCycle) {
+                controlCoeffs.set(4*i, graphView.cycleNew.bcoeffs[i]);
+            }
+        }
     }
 
 }

@@ -566,19 +566,22 @@ void MainContentComponent::setSplineArrays()
         controlCoeffs.set(i, 0);
     }
     
+    // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
     float incr = 1 / (float) k;
     if (graphView.graphNewSplineCycle) {
-        // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
-        for (int i=0; i<d+1; i++) {
+        for (int i=0; i<d+1; i++) {  // d+1
             knotVals.set(i, 0);
         }
-        for (int i=4; i<N-d; i++) {
+        for (int i=4; i<N-d; i++) {  // N-d-1-3
             knotVals.set(i, knotVals[i-1]+incr);
         }
-        for (int i=0; i<d+1; i++) {
+        for (int i=N-d; i<N+1; i++) {  // d+1
             knotVals.set(i, 1);
-        }
-        
+        }                            // total = N-d-4+2d+2 = N+1
+//        for (int i=0; i<N+1; i++) {
+//            DBG("knotVals [" << i << "] = " << knotVals[i]);
+//        }
+    // Old knot sequence: -3/k,-2/k,-1/k,0,1/k,2/k,...,(k-1)/k,1,1+1/k,1+2/k,1+3/k
     } else {
         for (int i=0; i<N+1; i++) {
             knotVals.set(i, (i-d) * incr);
@@ -587,15 +590,17 @@ void MainContentComponent::setSplineArrays()
     }
 
     for (int i=0; i<n; i++) {
-//        controlCoeffs.set(4*i, graphView.cycleToGraph.bcoeffs[i]);
-        controlCoeffs.set(4*i, graphView.cycleNew.bcoeffs[i]);
-//        DBG("control coeffs [" << n*i << "] = " << controlCoeffs[n*i]);
-    }
-    for (int m=0; m<10; m++) {
-        for (int i=0; i<n; i++) {
-            controlCoeffs.set(4*(i+m*n), graphView.cycles[m].bcoeffs[i]);
+        if (graphView.graphNewSplineCycle) {
+            controlCoeffs.set(4*i, graphView.cycleNew.bcoeffs[i]);
+        } else {
+            controlCoeffs.set(4*i, graphView.cycleToGraph.bcoeffs[i]);
         }
     }
+//    for (int m=0; m<10; m++) {
+//        for (int i=0; i<n; i++) {
+//            controlCoeffs.set(4*(i+m*n), graphView.cycles[m].bcoeffs[i]);
+//        }
+//    }
 }
 
 // randomize bcoeffs in controlCoeffs array depending on which part is in use
@@ -673,6 +678,7 @@ float MainContentComponent::computeSpline(int control, float t)
 {
     // assume t is in [0,1] and output is 0 at the ends
     // this function is called in the audio callback getNextAudioBlock()
+
     int m = control;
 //    m = 0;  // set this to use only cycles[0] in graphView setSplineArrays
             // ignore the other cycles in controlCoeffs
@@ -683,16 +689,22 @@ float MainContentComponent::computeSpline(int control, float t)
     int n = k + d;  // dimension of splines, also number of inputs
     int N = n + d;  // last index of knot sequence t_0,...,t_N
     if ((t > 0) && (t < 1)) {
-        for (int i=1; i<N; i++)
-        {
-            if (t < knotVals[i])
-            {
-              J = i-1;
-                if (J > n-1) {
-                    J = n-1;
-                }
-              break;
-            }
+//        for (int i=1; i<N; i++) {
+//            if (t < knotVals[i]) {
+//              J = i-1;
+//                if (J > n-1) {
+//                    J = n-1;
+//                }
+//              break;
+//            }
+//        }
+        int i = 0;
+        while (t > knotVals[i]) {
+            i += 1;
+        }
+        J = i - 1;
+        if (J > n-1) {
+            J = n-1;
         }
         // controlCoeffs[i,j] is controlCoeffs[4*i+j], row=i,col=j
         // m=0,1,2 shifts controlCoeffs by m*n
