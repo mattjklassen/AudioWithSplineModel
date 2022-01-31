@@ -727,8 +727,9 @@ void GraphComponent::mouseDown (const MouseEvent& event)
             }
             if (highlightCycle == n) {
                 cycleNew = CycleSpline(kVal, a, b);
-                setNewTargets(floatBuffer);
+                setNewTargets(floatBuffer);   // initialize data for cycleNew
                 computeNewBcoeffs(floatBuffer);
+                resetNewBcoeffs();
                 computeCycleSplineOutputs(cycleNew);
                 graphNewSplineCycle = true;
                 graphSplineCycle = false;
@@ -740,21 +741,60 @@ void GraphComponent::mouseDown (const MouseEvent& event)
     }
 }
 
+void GraphComponent::resetNewBcoeffs()
+{
+    int n = kVal + 3;
+    for (int i=1; i<n-1; i++) {
+        cycleNew.bcoeffs.set(i, 0);
+    }
+    int middle = n / 2;
+    cycleNew.bcoeffs.set(middle, 0.5);
+}
+
+void GraphComponent::iterateCA() {
+    
+    int n = kVal + 3;
+//    for (int i=2; i<n-2; i++) {
+//        cycleNew.bcoeffs.set(i, 0);
+//    }
+    Array<float> temp;
+    for (int i=0; i<n; i++) {
+        temp.set(i, cycleNew.bcoeffs[i]);
+    }
+    for (int i=2; i<n-2; i++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        float s = juce::Random::getSystemRandom().nextFloat();
+//        s = 2 * s - 1; // random float in [-1,1]
+//        s *= 0.1;
+        float a1 = temp[i-1];
+        float a2 = temp[i];
+        float a3 = temp[i+1];
+        float h = 1.5; // / (float) kVal;
+        float val = (a1 + a3) / h;
+//        float val = (a1 + a2 + a3) / h;
+//        if (r < 0.1) {
+//            val += s;
+//        }
+        cycleNew.bcoeffs.set(i, val);
+    }
+}
+
 void GraphComponent::randomizeNewCycle()
 {
     int n = kVal + 3;
+    iterateCA();
     
     // Paul, below is the version that I first showed you, just adding random amounts
 
-    for (int i=2; i<n-2; i++) {
-        float r = juce::Random::getSystemRandom().nextFloat();
-        r = 2 * r - 1; // random float in [-1,1]
-        r *= 0.1;
-        float val = cycleNew.bcoeffs[i] + r;
-        if (abs(val) < 0.8) {
-            cycleNew.bcoeffs.set(i, val);
-        }
-    }
+//    for (int i=2; i<n-2; i++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        r = 2 * r - 1; // random float in [-1,1]
+//        r *= 0.1;
+//        float val = cycleNew.bcoeffs[i] + r;
+//        if (abs(val) < 0.8) {
+//            cycleNew.bcoeffs.set(i, val);
+//        }
+//    }
     
     // this is one is basically a low pass filter
 //    for (int i=2; i<n-2; i++) {
@@ -764,8 +804,10 @@ void GraphComponent::randomizeNewCycle()
 //        float val = (cycleNew.bcoeffs[i] + cycleNew.bcoeffs[i-1])/2;
 //        if (abs(val) < 0.9) {
 //            cycleNew.bcoeffs.set(i, val);
+//            DBG("bcoeffs[" << i << "]:  " << cycleNew.bcoeffs[i]);
 //        }
 //    }
+//    cycleNew.printData();
     
     // Paul, next is the final example we did together this morning
 

@@ -348,7 +348,7 @@ private:
     bool regularCycleInterp = true;
     bool endsOnlyCycleInterp = false;
     bool normalizeCycleLength = false;
-    bool addSubharmonic = true;
+    bool addSubharmonic = false;
     bool useEnvelope = true;
     bool randomizeBcoeffs = false;
     bool keysWithoutCycleInterp = false;

@@ -121,6 +121,10 @@ public:
     
     float metaSplineFactor = 1;
     
+    void iterateCA();
+    
+    void resetNewBcoeffs();
+    
 private:
     
     void drawGraphBox(juce::Graphics& g, float w, float h);
