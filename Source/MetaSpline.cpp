@@ -56,6 +56,7 @@ MetaSpline::MetaSpline(int _n, int _m)
     }
 }
 
+// need to go back to cubic metasplines to fill in more examples
 MetaSpline::MetaSpline(int _n, int _m, int _numOutputs)
 {
     // sets all parameters and arrays of MetaSpline except for targets, bcoeffs and outputs

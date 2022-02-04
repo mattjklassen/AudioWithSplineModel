@@ -23,6 +23,10 @@ void GraphComponent::paint (juce::Graphics& g)
     g.setColour (juce::Colours::darkgrey);
     drawGraphBox(g, w, h);
     g.setColour (juce::Colours::blue);
+    if (graphCAmodel) {
+        graphModelOnly(g);
+        return;
+    }
     if (graphMetaSplinesOn) {
 //        graphMetaSplines(g);
         graphLinearMetaSplines(g);
@@ -216,6 +220,50 @@ void GraphComponent::findCyclesToGraph ()
     cyclesToGraph = true;
 //    std::cout << "cycles to graph:  " << startIndex << " to " << endIndex << std::endl;
 }
+
+void GraphComponent::graphModelOnly(juce::Graphics& g)
+{
+    juce::Path modelGraph;
+    scaleInterval();
+    // set Value objects which will be used to set scrollBar
+    leftEP.setValue(leftEndPoint);
+    rightEP.setValue(rightEndPoint);
+    int startSample = (int) leftEndPoint;
+    float x = 0;
+    float s = floatBuffer.getSample(0, startSample);
+    float y = (1 - s) * h/2;
+    modelGraph.startNewSubPath (juce::Point<float> (x, y));
+    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
+    float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
+    int j = 1;
+    for (int i=1; i < numSamples; i++) {
+        if (i * mult > numSamples) {
+            break;
+        }
+        x = x + mult * xincr;
+        j = startSample + i * mult;
+        if (j > sampleCount-1) {
+            j = sampleCount-1;
+            i = numSamples;
+        }
+        s = floatBuffer.getSample(0, j);
+        s *= amplitudeFactor;
+        y = (1 - s) * h/2;
+        g.setColour (juce::Colours::green);
+        if (numSamples < 400) {
+            drawDot(juce::Point<float> (x,y), g);
+        }
+        s = modelBuffer.getSample(0, j);
+        s *= amplitudeFactor;
+        y = (1 - s) * h/2;
+        modelGraph.lineTo (juce::Point<float> (x,y));
+    }
+    float myThickness = 1;
+    juce::PathStrokeType myType = PathStrokeType(myThickness);
+    g.setColour (juce::Colours::blue);
+    g.strokePath (modelGraph, myType);
+}
+
 
 // to graph signal: leftEndPoint and rightEndPoint determine the graph window
 // audio interval is [leftEndPoint, rightEndPoint] = [a,b]
@@ -749,6 +797,18 @@ void GraphComponent::resetNewBcoeffs()
     }
     int middle = n / 2;
     cycleNew.bcoeffs.set(middle, 0.5);
+    cycleNew.bcoeffs.set(middle-3, -0.4 );
+    cycleNew.bcoeffs.set(middle+3, -0.4 );
+    cycleNew.bcoeffs.set(middle-7, 0.3 );
+    cycleNew.bcoeffs.set(middle+7, 0.3 );
+    cycleNew.bcoeffs.set(middle-13, -0.2 );
+    cycleNew.bcoeffs.set(middle+13, -0.2 );
+    cycleNew.bcoeffs.set(middle-20, 0.1 );
+    cycleNew.bcoeffs.set(middle+20, 0.1 );
+//    int first = n / 3;
+//    cycleNew.bcoeffs.set(first, 0.5);
+//    int second = 2 * first;
+//    cycleNew.bcoeffs.set(second, 0.5);
 }
 
 void GraphComponent::iterateCA() {
@@ -761,20 +821,34 @@ void GraphComponent::iterateCA() {
     for (int i=0; i<n; i++) {
         temp.set(i, cycleNew.bcoeffs[i]);
     }
-    for (int i=2; i<n-2; i++) {
-//        float r = juce::Random::getSystemRandom().nextFloat();
-//        float s = juce::Random::getSystemRandom().nextFloat();
-//        s = 2 * s - 1; // random float in [-1,1]
-//        s *= 0.1;
-        float a1 = temp[i-1];
-        float a2 = temp[i];
-        float a3 = temp[i+1];
-        float h = 1.5; // / (float) kVal;
-        float val = (a1 + a3) / h;
+//    for (int i=2; i<n-2; i++) {
+////        float r = juce::Random::getSystemRandom().nextFloat();
+////        float s = juce::Random::getSystemRandom().nextFloat();
+////        s = 2 * s - 1; // random float in [-1,1]
+////        s *= 0.1;
+//        float a1 = temp[i-1];
+//        float a2 = temp[i];
+//        float a3 = temp[i+1];
+//        float h = 2.8; // / (float) kVal;
+//        float val = (a1 + a3) / h;
 //        float val = (a1 + a2 + a3) / h;
 //        if (r < 0.1) {
 //            val += s;
 //        }
+    for (int i=2; i<n-2; i++) {
+        float r = juce::Random::getSystemRandom().nextFloat();
+        float s = juce::Random::getSystemRandom().nextFloat();
+        s = 2 * s - 1; // random float in [-1,1]
+        s *= 0.1;
+        float a1 = temp[i-1];
+        float a2 = temp[i];
+        float a3 = temp[i+1];
+        float h = 2.9; // / (float) kVal;
+        float val = (a1 +a2+ a3) / h;
+//        float val = (a1 + a2 + a3) / h;
+        if (r < 0.1) {
+            val += s;
+        }
         cycleNew.bcoeffs.set(i, val);
     }
 }

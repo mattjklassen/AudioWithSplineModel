@@ -89,6 +89,7 @@ public:
     juce::Path freeCurve;
     bool drawCurve = false;
     bool mouseOverCycleZero = false;
+    bool graphCAmodel = false;
     
     juce::Point<float> signalToScreenCoords (juce::Point<float> P);
     juce::Point<float> screenToSignalCoords (juce::Point<float> Q);
@@ -137,8 +138,10 @@ private:
     
     void graphSignal(juce::Graphics& g);
     
-    void graphModel(juce::Graphics& g);
+//    void graphModel(juce::Graphics& g);
 
+    void graphModelOnly(juce::Graphics& g);
+    
     void graphSpline(juce::Graphics& g, CycleSpline& cycle);
     
     void scaleInterval();

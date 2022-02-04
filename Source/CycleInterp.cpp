@@ -71,7 +71,7 @@
 // similarly to how we did for the cycle splines.  The target values are now B-spline coeffs at each of
 // of the key cycles.
 
-// Another note regarding computation: we can choose a smaller cycle length in order to lower the
+// Note regarding computation: we can choose a smaller cycle length in order to lower the
 // size of linear systems n=k+d but then create a sequence of these smaller cycles in chunks to
 // perform the role of key cycles.  For cycle interpolation, however, this would only work if the
 // chunk of cycles is still part of a sort of periodic pattern.
@@ -80,7 +80,18 @@
 
 void MainContentComponent::writeModelToBuffer()
 {
+    if (randomizeBcoeffs) {
+        uint32 time1 = Time::getMillisecondCounter();
+        setKeyCycleIndices();
+        modelWithCAplusCycleInterp();
+        uint32 time2 = Time::getMillisecondCounter();
+        float timeVal = (float(time2)-float(time1)) * 0.001;
+        DBG("time to compute model (sec):  " << timeVal);
+        return;
+    }
+    graphView.graphCAmodel = false;
     if (noCycleInterp) {
+        
         uint32 time1 = Time::getMillisecondCounter();
         modelWithoutCycleInterp();
         uint32 time2 = Time::getMillisecondCounter();
@@ -221,11 +232,79 @@ void MainContentComponent::setKeyCycleIndices() {
     DBG("there are " << keys.size() << " key cycles");
 }
 
+// need to decide if we are fixing constant cycle length ???
+void MainContentComponent::generateKeyCyclesCA()
+{
+    keyCycleArray.clear();
+    writeBuffer.clear();
+    writeBuffer.setSize(1, lastSample+1);  // channels, samples
+    float a = 0, b = 1;
+    CycleSpline cycle = CycleSpline(kVal, a, b);
+    int i = 0;
+    int k = kVal;
+    DBG("kVal = " << kVal);
+    int d = dVal;
+    int n = k + d;  // dim of cycle splines
+    // add first key cycle as cycleNew
+    if (graphView.highlightCycle > -1) {
+        keyCycleArray.add(graphView.cycleNew);
+    } else {
+        // use audio graph key cycle 1
+        a = cycleZeros[1];
+        b = cycleZeros[2];
+        cycle = CycleSpline(kVal, a, b);
+        computeCycleBcoeffs(cycle, floatBuffer);
+        graphView.cycleNew = cycle;
+//        graphView.iterateCA();
+        cycle = graphView.cycleNew;
+        for (int p=0; p<n; p++) {
+            keyBcoeffs.set(i*n+p, cycle.bcoeffs[p]);
+        }
+        keyCycleArray.add(cycle);
+        computeCycleSplineOutputs(cycle);
+        int M = cycle.outputs.size();
+        int L = ((int)a) + 1;  // first sample index to write
+        for (int j=0; j<M; j++) {
+            float value = cycle.outputs[j];
+            writeBuffer.setSample(0, j+L, value);
+        }
+    }
+    for (i=1; i<keys.size(); i++)
+    {
+        a = cycleZeros[keys[i]];
+        b = cycleZeros[keys[i]+1];
+        cycle = CycleSpline(kVal, a, b);
+        // iterate CA to compute next key cycle bcoeffs
+        graphView.iterateCA();
+        for (int p=0; p<n; p++) {
+            keyBcoeffs.set(i*n+p, graphView.cycleNew.bcoeffs[p]);
+            cycle.bcoeffs.set(p, graphView.cycleNew.bcoeffs[p]);
+        }
+        keyCycleArray.add(cycle);
+        computeCycleSplineOutputs(cycle);
+        int M = cycle.outputs.size();
+        int L = ((int)a) + 1;  // first sample index to write
+        for (int j=0; j<M; j++) {
+            float value = cycle.outputs[j];
+            writeBuffer.setSample(0, j+L, value);
+        }
+    }
+}
+
+void MainContentComponent::modelWithCAplusCycleInterp()
+{
+    generateKeyCyclesCA();
+    computeMetaSplines();
+    writeNormalizedCyclesToBuffer();
+    graphView.graphCAmodel = true;
+    graphView.repaint();
+}
+
 // compute key cycle bcoeffs, write to keyBcoeffs array
 // but do not compute outputs and do not write to buffer
 void MainContentComponent::computeKeyCycles()
 {
-    // Do cycle interpolation with key cycle indices from keys[]
+    // compute key cycles and add to array keyCycleArray
     keyCycleArray.clear();
     writeBuffer.clear();
     writeBuffer.setSize(1, lastSample+1);  // channels, samples
@@ -317,16 +396,16 @@ void MainContentComponent::computeMetaSplines()
     // targets of metasplines are keycycle coeffs for first n-2, 0 for the last two
     // which are for the second derivative conditions at the ends
     metaSplineArray.clear();
-    MetaSpline spline = MetaSpline(keys.size()+2, mVal);
+    MetaSpline spline = MetaSpline(keys.size(), mVal);
     int n = kVal + dVal;  // dim of cycle splines, = # bcoeffs for each cycle spline
     for (int i=0; i<n; i++) {  // loop on each bcoeff of cycles with same fixed kVal
-        spline = MetaSpline(keys.size()+2, mVal, numCycles); // numCycles = outputs.size()
+        spline = MetaSpline(keys.size(), mVal, numCycles); // numCycles = outputs.size()
         for (int j=0; j<keys.size(); j++) {  // j loop on key cycles
             if (regularCycleInterp) {
                 // already set uniform inputs
             } else {
-                // put metaspline inputs at values keys*(1/numCycles)
-                spline.inputs.set(j, (float)keys[j] / (float)numCycles);
+                // put metaspline inputs at values keys*(1/numCycles-1)
+                spline.inputs.set(j, (float)keys[j] / (float)numCycles-1);
             }
             spline.targets.set(j, keyBcoeffs[j*n+i]);
         }
@@ -346,8 +425,8 @@ void MainContentComponent::writeNormalizedCyclesToBuffer()
     int i = 0;
     float a = 0, b=1, ratio = 1;
     CycleSpline cycle;
-    CycleSpline secondLastKeyCycle = keyCycleArray[keyCycleArray.size()-2];
     int n = kVal + dVal;
+    float total = (float) numCycles;
     while (i < numCycles) {
         // the next block forces each cycle to have samplesPerCycleGuess samples
         // as computed by computeCycleSplineOutputs(cycle) using only a and b
@@ -362,28 +441,32 @@ void MainContentComponent::writeNormalizedCyclesToBuffer()
             int j = keyIndex(i);
             cycle = keyCycleArray[j];
             cycle.a = a; cycle.b = b;   // reset to normalized a and b
+            DBG("writing key cycle: " << i);
         } else {
             // set bcoeffs for (non-key) cycle i using meta-spline
+            DBG("writing cycle: " << i);
             cycle = CycleSpline(kVal, a, b);  // this is cycle i
-            // here use only the second last key cycle for the tail:
             for (int j=0; j<n; j++) {
-                if (i < keys[keys.size()-2]) {
-                    cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+                cycle.bcoeffs.set(j, metaSplineArray[j].outputs[i]);
+            }
+            cycle.printData();
+        }
+        computeCycleSplineOutputs(cycle);
+
+        if (randomizeBcoeffs) {
+            ratio = 1;
+            if (i > 10) {
+                ratio = (total + 10 - i) / total;
+            }
+        } else {
+            if (useEnvelope) {
+                if (cycle.maxVal > 0) {
+                    ratio = maxSampleValues[i] / cycle.maxVal;
                 } else {
-                    cycle.bcoeffs.set(j, secondLastKeyCycle.bcoeffs[j]);
+                    DBG("cycle [" << i << "] has maxVal 0");
                 }
             }
         }
-        computeCycleSplineOutputs(cycle);
-        if (useEnvelope) {
-            if (cycle.maxVal > 0) {
-                ratio = maxSampleValues[i] / cycle.maxVal;
-            } else {
-                DBG("cycle [" << i << "] has maxVal 0");
-            }
-        }
-        // DBG("cycle number:  " << i);
-        // cycle.printData();
         int M = cycle.outputs.size();
         int L = ((int)a) + 1;  // first sample index to write
         for (int j=0; j<M; j++) {

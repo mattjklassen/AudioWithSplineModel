@@ -231,6 +231,10 @@ private:
     
     void computeParabolicBcoeffs();
     
+    void modelWithCAplusCycleInterp();
+    
+    void generateKeyCyclesCA();
+    
     CycleSpline cycleParabola = CycleSpline(20, 0, 1);
     
     void setNew(CycleSpline& cycle);
