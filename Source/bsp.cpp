@@ -459,6 +459,7 @@ float bSplineVal(int k, int j, float t)
 // outputs for metaspline i will be bcoeff i for all cycles
 void computeLinearMetaSplineOutputs(MetaSpline& spline)
 {
+//    DBG("computing linear metaspline outputs");
     int P = spline.outputs.size();
     float incr = 1 / (float)P;
     spline.outputs.set(0, spline.targets[0]);
@@ -482,6 +483,7 @@ void computeLinearMetaSplineOutputs(MetaSpline& spline)
         // end subharmonic
         spline.outputs.set(i, y);
     }
+//    DBG("finished computing linear metaspline outputs");
 }
 
 // compute the outputs of a meta-spline using DeBoor algorithm

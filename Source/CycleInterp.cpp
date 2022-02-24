@@ -405,7 +405,7 @@ void MainContentComponent::computeMetaSplines()
                 // already set uniform inputs
             } else {
                 // put metaspline inputs at values keys*(1/numCycles-1)
-                spline.inputs.set(j, (float)keys[j] / (float)numCycles-1);
+                spline.inputs.set(j, (float)keys[j] / (float)(numCycles-1));
             }
             spline.targets.set(j, keyBcoeffs[j*n+i]);
         }
