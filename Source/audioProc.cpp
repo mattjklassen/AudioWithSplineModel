@@ -106,12 +106,7 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
         auto Pi = juce::MathConstants<double>::pi;
         auto localTargetFrequency = targetFrequency;
         auto frequencyIncrement = (localTargetFrequency - currentFrequency) / bufferToFill.numSamples;
-//        int n = kVal + 3;
-//        bcoeffRandomized += 1;
-//        randBcoeff(bcoeffRandomized);
-//        if (bcoeffRandomized == n) {
-//            bcoeffRandomized = 0;
-//        }
+
         for (auto sample = 0; sample < bufferToFill.numSamples; ++sample)
         {
             // compute currentSample value with spline of selected cycle:
@@ -130,7 +125,6 @@ void MainContentComponent::getNextAudioBlock (const juce::AudioSourceChannelInfo
 //            if (sampleRendered == samplesPerSelectedCycle - 1) {
 //                sampleRendered = 0;
 //            }
-
             currentFrequency += frequencyIncrement;
             currentAngle += angleDelta;
         }
@@ -151,8 +145,10 @@ void MainContentComponent::readAudioData2 (AudioFormatReader *reader) {
     
     sampleCount = (int) reader->lengthInSamples;
     sampleRate = (int) reader->sampleRate;
+    DBG("reader->numChannels: " << (int)reader->numChannels);
+    DBG("reader->lengthInSamples: " << (int)reader->lengthInSamples);
     floatBuffer.setSize ((int) reader->numChannels, (int) reader->lengthInSamples);
-    reader->read(&floatBuffer,                     // juce AudioBuffer <float>
+    reader->read(&floatBuffer,                    // juce AudioBuffer <float>
                  0,                               // start sample in buffer
                  (int) reader->lengthInSamples,   // number of samples in file data
                  0,                               // start sample to fill in buffer

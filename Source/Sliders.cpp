@@ -14,12 +14,12 @@ void MainContentComponent::addSliders()
 {
     
     addAndMakeVisible (&freqGuessSlider);
-    freqGuessSlider.setRange (20, 2000.0);
+    freqGuessSlider.setRange (20, 4000.0);
     freqGuessSlider.setTextValueSuffix (" Hz");
     freqGuessSlider.setNumDecimalPlacesToDisplay(2);
     freqGuessSlider.addListener (this);
-    freqGuessSlider.setValue (220.0);
-    freqGuessSlider.setSkewFactorFromMidPoint (100);
+    freqGuessSlider.setValue (freqGuess, juce::sendNotification);
+    freqGuessSlider.setSkewFactorFromMidPoint (1000);
     
     addAndMakeVisible (&freqGuessLabel);
     freqGuessLabel.setText ("Frequency Guess", juce::dontSendNotification);
@@ -31,7 +31,7 @@ void MainContentComponent::addSliders()
     frequencySlider.setNumDecimalPlacesToDisplay(2);
     frequencySlider.addListener (this);
     frequencySlider.setValue (currentFrequency, juce::dontSendNotification);
-    frequencySlider.setSkewFactorFromMidPoint (220);
+    frequencySlider.setSkewFactorFromMidPoint (283);
     
     addAndMakeVisible (&frequencyLabel);
     frequencyLabel.setText ("Cycle Frequency", juce::dontSendNotification);

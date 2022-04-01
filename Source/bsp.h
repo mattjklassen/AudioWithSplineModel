@@ -57,6 +57,7 @@ void getbcoeffsteps(int k, int d, int NumZeros, double *bcoeffsteps, double *bco
 void getlinearbcoeffs(int k, int d, double *bcoeffsteps, double *bcoeffs);
 void computeCycleBcoeffs(CycleSpline& cycle, AudioBuffer<float>& samples);
 void computeCycleBcoeffsOld(CycleSpline& cycle, AudioBuffer<float>& samples);
+void computeCycleBcoeffsWithDelta(CycleSpline& cycle, AudioBuffer<float>& samples);
 void computeCycleSplineOutputs(CycleSpline& cycle);
 void computeMetaSplineOutputs(MetaSpline& spline);
 void computeLinearMetaSplineOutputs(MetaSpline& spline);

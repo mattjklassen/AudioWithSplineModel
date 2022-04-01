@@ -32,6 +32,8 @@ public:
     
     void setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _allZeros, Array<int> _samplesPerCycle, float _freqGuess, Array<float>& _maxSampleIndices, Array<float>& _maxSampleValues);
     
+    void setBreakPointsForGraph(Array<float>& _cycleBreakPoints, Array<int>& _samplesPerCycle);
+    
     void setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray);
     void setModelForGraph(AudioBuffer<float>& _modelBuffer);
     void setkVal(int _kVal);
@@ -72,6 +74,7 @@ public:
     int highlightCycle = -1;  // positive number is cycle to highlight
     juce::Colour highlightColour;
     Array<juce::Colour> cycleColours;
+    Array<float> cycleBreakPoints;   // replaces zeros for delta model
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
     Array<float> allZeros;      // all zeros in audio sample
     Array<int> samplesPerCycle;
@@ -124,7 +127,7 @@ public:
     
     void iterateCA();
     
-    void resetNewBcoeffs();
+    void resetNewBcoeffs();    
     
 private:
     

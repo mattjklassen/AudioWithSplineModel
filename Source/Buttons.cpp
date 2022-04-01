@@ -136,6 +136,12 @@ void MainContentComponent::addButtons()
     randomizeButton.onClick = [this] { randomizeButtonClicked(); };
     randomizeButton.changeWidthToFitText();
     
+    addAndMakeVisible (&useDeltaModelButton);
+    useDeltaModelButton.setButtonText ("use Delta Model");
+    useDeltaModelButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
+    useDeltaModelButton.onClick = [this] { useDeltaModelButtonClicked(); };
+    useDeltaModelButton.changeWidthToFitText();
+    
     addAndMakeVisible (interpSelector);
     interpSelector.addItem ("Regular Cycle Interp",  1);
     interpSelector.addItem ("Exponential Cycle Interp",   2);
@@ -145,7 +151,7 @@ void MainContentComponent::addButtons()
     interpSelector.addItem ("Other Cycle Interp", 6);
     interpSelector.setColour (juce::ComboBox::backgroundColourId, buttonColours[3]);
     interpSelector.onChange = [this] { interpSelectionChanged(); };
-    interpSelector.setSelectedId (1);
+    interpSelector.setSelectedId (3);
     
     setSize (400, 200);
 }
@@ -166,6 +172,7 @@ void MainContentComponent::interpSelectionChanged()
     switch (interpSelector.getSelectedId())
     {
         case 1: regularCycleInterp = true;
+            DBG("regularCycleInterp = true");
                 break;
         case 2: expCycleInterp = true;
                 break;
@@ -177,7 +184,7 @@ void MainContentComponent::interpSelectionChanged()
                 break;
         case 6: otherCycleInterp = true;
                 break;
-        default: regularCycleInterp = true;
+        default: noCycleInterp = true;
                 break;
     }
 }
@@ -285,6 +292,7 @@ void MainContentComponent::computeModelButtonClicked()
     DBG("output.wav written");
     graphView.keysToAdd.clear();
     graphView.keysToRemove.clear();
+//    DBG("cleared keys to add/remove arrays");
 }
 
 void MainContentComponent::playModelButtonClicked()
@@ -371,6 +379,17 @@ void MainContentComponent::randomizeButtonClicked()
     } else {
         randomizeBcoeffs = false;
         DBG("randomizeBcoeffs is now: false");
+    }
+}
+
+void MainContentComponent::useDeltaModelButtonClicked()
+{
+    if (useDeltaModelButton.getToggleState()) {
+        modelWithDelta = true;
+        DBG("useDeltaModel is now: true");
+    } else {
+        modelWithDelta = false;
+        DBG("useDeltaModel is now: false");
     }
 }
 

@@ -461,16 +461,20 @@ void computeLinearMetaSplineOutputs(MetaSpline& spline)
 {
 //    DBG("computing linear metaspline outputs");
     int P = spline.outputs.size();
+//    DBG("outputs.size: " << P);
+//    DBG("inputs.size: " << spline.inputs.size());
     float incr = 1 / (float)P;
     spline.outputs.set(0, spline.targets[0]);
     float t = 0, y = 0;
     int j = 0;
     for (int i=1; i<spline.outputs.size(); i++) {
         t = incr * i;
+//        DBG("t value: " << t);
         j = 0;
         while(t > spline.inputs[j]) {
             j += 1;
         } // linear interp between targets[j-1] and targets[j]:
+//        DBG("do linear interp");
         float t0 = spline.inputs[j-1], t1 = spline.inputs[j];
         float y0 = spline.targets[j-1], y1 = spline.targets[j];
         y = (t-t0)/(t1-t0) * y1 + (t1-t)/(t1-t0) * y0;
@@ -482,8 +486,9 @@ void computeLinearMetaSplineOutputs(MetaSpline& spline)
 //        }
         // end subharmonic
         spline.outputs.set(i, y);
+//        spline.printData();
     }
-//    DBG("finished computing linear metaspline outputs");
+//    DBG("finished computing linear metasplines");
 }
 
 // compute the outputs of a meta-spline using DeBoor algorithm
@@ -541,6 +546,7 @@ void computeMetaSplineOutputs(MetaSpline& spline)
 }
 
 // compute the outputs of a spline on one cycle using DeBoor algorithm
+// this version uses the values y0 and y1 and cubic delta
 void computeCycleSplineOutputs(CycleSpline& cycle)
 {
     int k = cycle.k, d = cycle.d;
@@ -549,14 +555,6 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     juce::Array<float> controlCoeffs;
     for (int i=0; i<4*(k+d); i++) {
         controlCoeffs.add(0);
-    }
-    float incr = 1 / (float) k;
-    juce::Array<float> knotVals;
-    for (int i=0; i<N+1; i++) {
-        knotVals.add((i-d) * incr);
-    }
-    for (int i=0; i<N+1; i++) {
-        knotVals.set(i, cycle.knots[i]);
     }
     float a = cycle.a, b = cycle.b;
     int i, h, J;  // J index in DeBoor Algorithm
@@ -576,6 +574,7 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     for (int i=0; i<Imax-Imin+1; i++) {
         cycle.outputs.add(0);
     }
+    float delta = cycle.y1 - cycle.y0;  // this is the "lift"
     for (h=Imin; h<Imax+1; h++)  // loop on samples
     {
         t = ((float)h-a)/length;  // t value in interval [0,1]
@@ -583,7 +582,7 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
         // set K value
         for (i=1; i<N; i++)
         {
-            if (t < knotVals[i])
+            if (t < cycle.knots[i])
             {
               J = i-1;
                 if (J > n-1) {
@@ -600,9 +599,9 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
         {
             for (i=J-d+p; i<J+1; i++)
             {
-              denom = (knotVals[i+d-(p-1)]-knotVals[i]);
-              fac1 = (t-knotVals[i]) / denom;
-              fac2 = (knotVals[i+d-(p-1)]-t) / denom;
+              denom = (cycle.knots[i+d-(p-1)]-cycle.knots[i]);
+              fac1 = (t-cycle.knots[i]) / denom;
+              fac2 = (cycle.knots[i+d-(p-1)]-t) / denom;
               controlCoeffs.set(4*i+p, fac1 * controlCoeffs[4*i+(p-1)]
                   + fac2 * controlCoeffs[4*(i-1)+(p-1)]);
             }
@@ -612,7 +611,10 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
             max = abs(fval);
             maxI = h-Imin;
         }
+        fval += cycle.y0;
+        fval += delta * t*t*(3-2*t);
         cycle.outputs.set(h-Imin, fval);  // outputs for int h = 0 to Imax-Imin
+        // outputs now include the cubic delta if y0 or y1 are nonzero
     }
     cycle.maxVal = max;
     cycle.maxIndex = maxI;
@@ -687,6 +689,68 @@ void computeMetaSplineBcoeffs(MetaSpline& spline)
     y = multMatCol(n, B, spline.targets);
     for (int i=0; i<n; i++) {
         spline.bcoeffs.set(i, y[i]);
+    }
+}
+
+// This version assumes that cycle might have y0 or y1 nonzero, in which case we need to subtract
+// p(t) = y0 + delta * q(t) from the target values of the audio signal, where q(t) = 3t^2-2t^3 and delta = y1 - y0.
+// Also, this version assumes cycle has the new knot sequence:  0,0,0,0,1/k,....(k-1)/k,1,1,1,1
+void computeCycleBcoeffsWithDelta(CycleSpline& cycle, AudioBuffer<float>& samples)
+{
+    // assume bcoeffs[0] = bcoeffs[n-1] = 0, and compute the other n-2
+    // this means B-spline graph will hit target 0 at the ends
+    // also bcoeffs[1] and bcoeffs[n-2] control the derivatives at the ends
+    int k = cycle.k, d = cycle.d;
+    int n = k + d;  // n is full dimension
+    float a = cycle.a;
+    float b = cycle.b;
+    // here we use only n-2 (middle) inputs, since these are the only ones needed to solve linear system
+    for (int i=0; i<n-2; i++) {
+        float t = cycle.inputs[i];
+        float output = interpFloat(a + t * (b-a), samples);
+        float delta = cycle.y1 - cycle.y0;
+        output -= cycle.y0;
+        output -= delta * t*t*(3-2*t);   // target value subtracts delta cubic
+        cycle.targets.set(i, output);
+    }
+    float val = 0;
+    juce::Array<float> A;
+    juce::Array<float> B;
+    juce::Array<float> temp;
+    for (int i=0; i<(n-2)*(n-2); i++) {  // A is n-2 x n-2
+        A.add(0);
+        B.add(0);
+        temp.add(0);
+    }
+    // linear system rows i, columns j to solve for c_1 ... c_{n-2}
+    // in system Ax=b these are indexed 0 ... n-3
+    // the entry A[i,j] should be B^3_j(s_i) for input s_i, but B-splines
+    // are shifted forward by one index, so B^3_{j+1}(s_i)
+    for (int i=0; i<n-2; i++) {
+        for (int j=0; j<n-2; j++) {
+            // shift j up by one since newBsplineVal works with nxn system
+            // and outer inputs are 0 and 1 with targets 0 already achieved
+            val = newBsplineVal(k, j+1, cycle.inputs[i]);  // A[i,j]
+            A.set(i*(n-2)+j, val);
+            temp.set(i*(n-2)+j, val);
+            B.set(i*(n-2)+j, 0);
+        }
+    }
+    for (int i=0; i<n-2; i++) {
+        B.set(i*(n-2)+i, 1.0);
+    }
+
+    gaussElim(n-2, temp, B);
+    Array<float> x;
+    Array<float> y;
+    for (int i=0; i<n-2; i++) {
+        x.add(0);
+        y.add(0);
+    }
+    // now solve for middle n-2 bcoeffs
+    y = multMatCol(n-2, B, cycle.targets);
+    for (int i=1; i<n-1; i++) {
+        cycle.bcoeffs.set(i, y[i-1]);
     }
 }
 

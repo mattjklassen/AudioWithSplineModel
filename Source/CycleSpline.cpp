@@ -13,14 +13,15 @@
 
 CycleSpline::CycleSpline()
 {
-    d = 3; k = 20; a = 0; b = 1;
+    d = 3; k = 20; a = 0; b = 1; y0 = 0; y1 = 0;
 }
 
+// now this intialization is changed to use new knot sequence, and y0, y1
 CycleSpline::CycleSpline(int _k, float _a, float _b)
 {
     isKey = true;
     d = 3; k = _k; a = _a; b = _b;
-//    a = 0; b = 1;
+    y0 = 0; y1 = 0;
     float incr = (b - a) / k;
     int n = k + d;  // dimension of splines, also number of inputs
     int N = n + d;  // last index of knot sequence t_0,...,t_N
@@ -32,21 +33,22 @@ CycleSpline::CycleSpline(int _k, float _a, float _b)
     }
     // now there are k subintervals inside interval [a,b] with a=subintervals[0], b=subintervals[k]
     
-    inputs.add(a);             // inputs[0]
-    inputs.add(a + incr / 2);  // inputs[1]
-    inputs.add(a + incr);      // inputs[2]
-    for (int i=3; i<n-2; i++)
-    {
-        inputs.add(inputs[i-1] + incr);  // inputs[3...(n-3)]
-    }
-    inputs.add(b - incr / 2);  // inputs[n-2]
-    inputs.add(b);             // inputs[n-1]
-    
     incr = 1 / (float) k;
-    knots.add(- d * incr);
-    for (int i=1; i<N+1; i++)
-    {
-        knots.add(knots[i-1] + incr);
+    inputs.add(0.5*incr);
+    for (int i=1; i<k; i++) {
+        inputs.add(i*incr);
+    }
+    inputs.add(1-0.5*incr);
+    
+    // New knot sequence: 0,0,0,0,1/k,2/k,...,(k-1)/k,1,1,1,1
+    for (int i=0; i<d+1; i++) {
+        knots.add(0);
+    }
+    for (int i=d+1; i<N-d; i++) {
+        knots.add(knots[i-1]+incr);
+    }
+    for (int i=0; i<d+1; i++) {
+        knots.add(1);
     }
     
     for (int i=1; i<k+d; i++)
@@ -111,6 +113,7 @@ float CycleSpline::value(float t)
 void CycleSpline::printData()
 {
     DBG("degree d = " << d << ", k = " << k << ", a = " << a << ", b = " << b);
+    DBG("y0 = " << y0 << ", y1 = " << y1);
 //    DBG("subintervals: ");
 //    for (int i=0; i<k+1; i++) {
 //        DBG("u[" << i << "] = " << subintervals[i]);
@@ -125,12 +128,12 @@ void CycleSpline::printData()
 //    for (int i=1; i<k+d; i++) {
 //        DBG("back diffs[" << i << "] = " << inputs[i] - inputs[i-1]);
 //    }
-//    if (targets.size() > 0) {
-//        DBG("targets: ");
-//        for (int i=0; i<targets.size(); i++) {
-//            DBG("targets[" << i << "] = " << targets[i]);
-//        }
-//    }
+    if (targets.size() > 0) {
+        DBG("targets: ");
+        for (int i=0; i<targets.size(); i++) {
+            DBG("targets[" << i << "] = " << targets[i]);
+        }
+    }
 //    if (knots.size() > 0) {
 //        DBG("knots: ");
 //        for (int i=0; i<k+2*d+1; i++) {
@@ -143,12 +146,50 @@ void CycleSpline::printData()
             DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
         }
     }
-//    if (outputs.size() > 0) {
-//        DBG("outputs: ");
-//        for (int i=0; i<outputs.size(); i++) {
-//            DBG("outputs[" << i << "] = " << outputs[i]);
-//        }
-//    }
+    if (outputs.size() > 0) {
+        DBG("outputs: ");
+        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
+            DBG("outputs[" << i << "] = " << outputs[i]);
+        }
+    }
 }
 
-
+// old version with simple knots sequence
+//CycleSpline::CycleSpline(int _k, float _a, float _b)
+//{
+//    isKey = true;
+//    d = 3; k = _k; a = _a; b = _b;
+//    y0 = 0; y1 = 0;
+//    float incr = (b - a) / k;
+//    int n = k + d;  // dimension of splines, also number of inputs
+//    int N = n + d;  // last index of knot sequence t_0,...,t_N
+//
+//    subintervals.add(a);
+//    for (int i=1; i<k+1; i++)
+//    {
+//        subintervals.add(subintervals[i-1] + incr);
+//    }
+//    // now there are k subintervals inside interval [a,b] with a=subintervals[0], b=subintervals[k]
+//
+//    inputs.add(a);             // inputs[0]
+//    inputs.add(a + incr / 2);  // inputs[1]
+//    inputs.add(a + incr);      // inputs[2]
+//    for (int i=3; i<n-2; i++)
+//    {
+//        inputs.add(inputs[i-1] + incr);  // inputs[3...(n-3)]
+//    }
+//    inputs.add(b - incr / 2);  // inputs[n-2]
+//    inputs.add(b);             // inputs[n-1]
+//
+//    incr = 1 / (float) k;
+//    knots.add(- d * incr);
+//    for (int i=1; i<N+1; i++)
+//    {
+//        knots.add(knots[i-1] + incr);
+//    }
+//
+//    for (int i=1; i<k+d; i++)
+//    {
+//        bcoeffs.add(0);
+//    }
+//}

@@ -189,6 +189,12 @@ void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _
 //    DBG("number of zeros:  " << allZeros.size());
 }
 
+void GraphComponent::setBreakPointsForGraph(Array<float>& _cycleBreakPoints, Array<int>& _samplesPerCycle)
+{
+    cycleBreakPoints = _cycleBreakPoints;
+    cycleZeros = _cycleBreakPoints;
+    samplesPerCycle = _samplesPerCycle;
+}
 
 void GraphComponent::setCycleColours()
 {
@@ -212,7 +218,7 @@ void GraphComponent::findCyclesToGraph ()
     }
     while (rightEndPoint > cycleZeros[i]) {
         i++;
-        if (i > cycleZeros.size()-1) {
+        if (i > cycleZeros.size()-2) {
             break;
         }
     }
@@ -264,7 +270,6 @@ void GraphComponent::graphModelOnly(juce::Graphics& g)
     g.strokePath (modelGraph, myType);
 }
 
-
 // to graph signal: leftEndPoint and rightEndPoint determine the graph window
 // audio interval is [leftEndPoint, rightEndPoint] = [a,b]
 // after scaling by m, [a,b] becomes interval of length (b-a)/m centered at (a+b)/2,
@@ -310,10 +315,12 @@ void GraphComponent::graphSignal(juce::Graphics& g)
             drawDot(juce::Point<float> (x,y), g);
         }
         if (updateModelGraph) {
-            s = modelBuffer.getSample(0, j);
-            s *= amplitudeFactor;
-            y = (1 - s) * h/2;
-            modelGraph.lineTo (juce::Point<float> (x,y));
+            if (j < modelBuffer.getNumSamples()) {
+                s = modelBuffer.getSample(0, j);
+                s *= amplitudeFactor;
+                y = (1 - s) * h/2;
+                modelGraph.lineTo (juce::Point<float> (x,y));
+            }
         }
     }
     float myThickness = 1;
@@ -503,7 +510,9 @@ void GraphComponent::shadeCycle(int n, juce::Graphics& g)
     juce::Rectangle<float> Rect2 (ptL2, ptR2);
     g.setColour(juce::Colours::darkgrey);
     g.drawText (samplesPC, Rect2, juce::Justification::centred, true);
-    juce::Point<float> cycleZeroLeft (cycleZeros[n], 0);
+    float y1 = interpFloat(cycleZeros[n], floatBuffer);
+    y1 *= amplitudeFactor;
+    juce::Point<float> cycleZeroLeft (cycleZeros[n], y1);
     cycleZeroLeft = signalToScreenCoords(cycleZeroLeft);
     g.setColour (juce::Colours::darkgrey);
     drawLargeDot(cycleZeroLeft, g);
@@ -543,7 +552,6 @@ void GraphComponent::mouseWheelMove (const MouseEvent& event, const MouseWheelDe
         }
         if (rightEndPoint > sampleCount-1) {
             rightEndPoint = sampleCount-1;
-//            leftEndPoint = rightEndPoint - (float) numSamples;
         }
         repaint();
     }
@@ -777,7 +785,7 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 cycleNew = CycleSpline(kVal, a, b);
                 setNewTargets(floatBuffer);   // initialize data for cycleNew
                 computeNewBcoeffs(floatBuffer);
-                resetNewBcoeffs();
+//                resetNewBcoeffs();
                 computeCycleSplineOutputs(cycleNew);
                 graphNewSplineCycle = true;
                 graphSplineCycle = false;
@@ -839,7 +847,7 @@ void GraphComponent::iterateCA() {
         float r = juce::Random::getSystemRandom().nextFloat();
         float s = juce::Random::getSystemRandom().nextFloat();
         s = 2 * s - 1; // random float in [-1,1]
-        s *= 0.1;
+        s *= 0.05;      // now random float in [-s,s]
         float a1 = temp[i-1];
         float a2 = temp[i];
         float a3 = temp[i+1];
@@ -855,7 +863,7 @@ void GraphComponent::iterateCA() {
 
 void GraphComponent::randomizeNewCycle()
 {
-    int n = kVal + 3;
+//    int n = kVal + 3;
     iterateCA();
     
     // Paul, below is the version that I first showed you, just adding random amounts
@@ -958,6 +966,7 @@ void GraphComponent::computeNewBcoeffs(AudioBuffer<float>& floatBuffer)
     }
 }
 
+
 void GraphComponent::computeParabolicBcoeffs()
 {
     int k = cycleParabola.k, d = cycleParabola.d;
@@ -1053,7 +1062,7 @@ void GraphComponent::setNewTargets(AudioBuffer<float>& floatBuffer)
     for (int i=0; i<d+1; i++) {
         cycleNew.knots.add(0);
     }
-    for (int i=4; i<N-d; i++) {
+    for (int i=d+1; i<N-d; i++) {
         cycleNew.knots.add(cycleNew.knots[i-1]+incr);
     }
     for (int i=0; i<d+1; i++) {

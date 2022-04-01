@@ -37,16 +37,15 @@ void MainContentComponent::scrollBarMoved (ScrollBar* scrollBarThatHasMoved ,
     double newRangeL = scrollBarThatHasMoved->getCurrentRange().getStart();
     graphView.leftEndPoint = (float) newRangeL / 1000 * (float) graphView.sampleCount;
     graphView.rightEndPoint = graphView.leftEndPoint + (float) graphView.numSamples;
-    if (graphView.rightEndPoint > graphView.sampleCount)
-    {
-        graphView.rightEndPoint = (float) graphView.sampleCount;
+    if (graphView.rightEndPoint > graphView.sampleCount-1) {
+        graphView.rightEndPoint = (float) graphView.sampleCount-1;
         graphView.leftEndPoint = graphView.rightEndPoint - (float) graphView.numSamples;
         graphView.hardRight = true;
-        DBG("set hardRight true");
+//        DBG("set hardRight true");
     }
     if (newRangeL == 0) {
         graphView.hardLeft = true;
-        DBG("set hardLeft true");
+//        DBG("set hardLeft true");
     }
     graphView.repaint();
 }

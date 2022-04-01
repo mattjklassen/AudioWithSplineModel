@@ -83,7 +83,8 @@ void MainContentComponent::resized()
     graphModelButton.setBounds (90, 70, 100, 20);
     interpSelector.setBounds (200, 70, 200, 20);
     normalizeCycleLengthButton.setBounds (410, 70, 200, 20);
-    randomizeButton.setBounds (600, 70, 200, 20);
+    randomizeButton.setBounds (1100, 70, 200, 20);
+    useDeltaModelButton.setBounds (600, 70, 200, 20);
     auto freqGuessSliderLeft = 120;
     freqGuessSlider.setBounds (freqGuessSliderLeft, 40, 250, 20);
     freqGuessLabel.setFont(14.0f);
@@ -98,7 +99,6 @@ void MainContentComponent::resized()
     mValLabel.setFont(14.0f);
 }
 
-
 void MainContentComponent::computeZeros()
 {
     int freq = (int) freqGuess;     // = guess at frequency in Hz
@@ -111,6 +111,9 @@ void MainContentComponent::computeZeros()
     int numAllZeros = FindAllZerosFloat(sampleRate, periods, freq, floatBuffer, allZeros);
     float lastZero = allZeros[numAllZeros];
     int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
+    // recompute numCycles:
+    numCycles = samplesPerCycle.size();
+    DBG("numCycles:  " << numCycles);
     lastSample = (int) lastZero;
     int actualLastSample = floatBuffer.getNumSamples() - 1;
     DBG("Sample before last zero: " << lastSample);
@@ -132,21 +135,31 @@ void MainContentComponent::computeZeros()
     DBG("average samples per cycle:  " << averageSamplesPerCycle);
     DBG("number of zeros:  " << numAllZeros);
     DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+
+    
 //    samplesPerCycle.sort();
 //    for (int i=0; i<samplesPerCycle.size()-1; i++) {
 //        cout << samplesPerCycle[i] << " ";
 //    }
+//    int k = floatBuffer.getNumSamples();
+//    int N = (int)cycleZeros[cycleZeros.size()-1];
+//    while (k > N) {
+//        k -= 1;
+//    }
+//    DBG("new size for floatBuffer:  " << k);
+//    floatBuffer.setSize(1, k);
 }
 
 void MainContentComponent::reComputeZeros()
 {
+    DBG("recomputing zeros and cycles");
     int freq = (int) freqGuess;     // = guess at frequency in Hz
     float lengthInSeconds = (float)sampleCount / (float)sampleRate;
     int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
     numCycles = periods;
-    DBG("numCycles:  " << numCycles);
+//    DBG("numCycles:  " << numCycles);
     int numKeyCycles = (int) ((float)numCycles / (float)mVal);
-    DBG("numKeyCycles:  " << numKeyCycles);
+//    DBG("numKeyCycles:  " << numKeyCycles);
     int numAllZeros = allZeros.size() - 1;
     float lastZero = allZeros[numAllZeros];
     cycleZeros.clear();
@@ -155,7 +168,88 @@ void MainContentComponent::reComputeZeros()
     lastSample = (int) lastZero;
     samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
     DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+    numCycles = samplesPerCycle.size();
+    DBG("numCycles:  " << numCycles);
 }
+
+//
+//void MainContentComponent::computeZeros()
+//{
+//    int freq = (int) freqGuess;     // = guess at frequency in Hz
+//    float lengthInSeconds = (float)sampleCount / (float)sampleRate;
+//    int numSamples = (int) sampleCount;
+//    int samplingRate = (int) sampleRate;
+//    FindAllZerosFloat(samplingRate, floatBuffer, allZeros);
+//    FindZerosClosestToPeriods(samplingRate, numSamples, freq, cycleZeros, allZeros, samplesPerCycle);
+//    float lastZero = allZeros[allZeros.size()-1];
+//    numCycles = samplesPerCycle.size();
+//
+//    DBG("numSamples: " << (float)sampleCount);
+//    DBG("numCycles:  " << numCycles);
+//    DBG("Length in sec: " << lengthInSeconds);
+//    DBG("Last zero: " << lastZero);
+//    DBG("Last cycle zero: " << cycleZeros[cycleZeros.size()-1]);
+//    DBG("number of zeros:  " << allZeros.size());
+//    int totalSamples = 0;
+//    for (int i=0; i<samplesPerCycle.size(); i++) {
+//        totalSamples += samplesPerCycle[i];
+//    }
+//    DBG("Sum of Samples per Cycle: " << totalSamples);
+//
+//    int j = 0;
+//    while (j<cycleZeros.size()) {
+//        for (int i=0; i<20; i++) {
+//            DBG("cycleZeros[" << i+j << "]: " << cycleZeros[i+j]);
+//        }
+//        j += 20;
+//    }
+//
+////    float lastCycleZero = cycleZeros[cycleZeros.size()-1];
+////    int lastSample = (int)lastCycleZero;
+//
+//    // set normalized cycle lengths
+////    for (int i=0; i<cycleZeros.size(); i++) {
+////        normalizedCycleZeros.set(i, cycleZeros[1] * i);
+////    }
+////    samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
+////    averageSamplesPerCycle = cycleZeros[cycleZeros.size()-1] / (float) cycleZeros.size();
+//
+////    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+////    DBG("average samples per cycle:  " << averageSamplesPerCycle);
+////    samplesPerCycle.sort();
+////    for (int i=0; i<samplesPerCycle.size()-1; i++) {
+////        cout << samplesPerCycle[i] << " ";
+////    }
+//}
+//
+//void MainContentComponent::reComputeZeros()
+//{
+//    DBG("re-computing zeros");
+//    cycleZeros.clear();
+//    samplesPerCycle.clear();
+//    int freq = (int) freqGuess;     // = guess at frequency in Hz
+//    float lengthInSeconds = (float)sampleCount / (float)sampleRate;
+//    int numSamples = (int) sampleCount;
+//    int samplingRate = (int) sampleRate;
+//    FindZerosClosestToPeriods(samplingRate, numSamples, freq, cycleZeros, allZeros, samplesPerCycle);
+//    float lastZero = allZeros[allZeros.size()-1];
+//    numCycles = samplesPerCycle.size();
+//    float lastCycleZero = cycleZeros[cycleZeros.size()-1];
+////    int lastSample = (int)lastCycleZero;
+//
+//    DBG("numSamples: " << (float)sampleCount);
+//    DBG("numCycles:  " << numCycles);
+//    DBG("Length in sec: " << lengthInSeconds);
+//    DBG("Last zero: " << lastZero);
+//    DBG("Last cycle zero: " << lastCycleZero);
+//    DBG("number of zeros:  " << allZeros.size());
+//    int totalSamples = 0;
+//    for (int i=0; i<samplesPerCycle.size(); i++) {
+//        totalSamples += samplesPerCycle[i];
+//    }
+//    DBG("Sum of Samples per Cycle: " << totalSamples);
+//
+//}
 
 bool MainContentComponent::keyStateChanged(bool isKeyDown)
 {

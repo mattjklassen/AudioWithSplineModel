@@ -20,10 +20,12 @@ public:
     int d;  // degree of B-splines, default d = 3
     int k; // number of subintervals, can vary, use default 20
     float a, b; // for interval [a,b] on time axis, a = left end point, b = right end point
+    float y0, y1;  // in case signal values are not 0 at a and b, this allows for 'lift' with delta
     float maxVal, maxIndex;  // maxVal is max abs value of outputs, which occurs at maxIndex
     Array<float> subintervals;  // default subinterval size = (b-a)/k, endpoints: u_0,...,u_k (k+1 values)
     Array<float> inputs; // default at a, b, and subinterval breakpoints, and midpoints of outer two subintervals
-    Array<float> outputs;  // output values computed from B-spline basis with DeBoor algorithm
+    Array<float> outputs;  // output values computed from B-spline basis with DeBoor algorithm and y0
+                           // number of outputs equals number of samples in interval [a,b]
     Array<float> targets; // audio signal values to match with B-splines
     Array<float> knots; // default uniform knot sequence includes subinterval endpoints, and d more on each end
     Array<float> bcoeffs; // B-spline coefficients, d+k of them

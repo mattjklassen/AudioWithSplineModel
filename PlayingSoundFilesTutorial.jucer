@@ -6,6 +6,10 @@
               id="YDJpjK" jucerFormatVersion="1">
   <MAINGROUP id="mM0A9o" name="AudioSplineModeling">
     <GROUP id="{F24ADD0A-7CE6-82C4-AB15-3EAA624A0801}" name="Source">
+      <FILE id="jHDQy5" name="CircularBuffer.cpp" compile="1" resource="0"
+            file="Source/CircularBuffer.cpp"/>
+      <FILE id="uXXxZu" name="CircularBuffer.h" compile="0" resource="0"
+            file="Source/CircularBuffer.h"/>
       <FILE id="X5M7ht" name="audioProc.cpp" compile="1" resource="0" file="Source/audioProc.cpp"/>
       <FILE id="txtPbU" name="CycleInterp.cpp" compile="1" resource="0" file="Source/CycleInterp.cpp"/>
       <FILE id="n6Ih35" name="ScrollBars.cpp" compile="1" resource="0" file="Source/ScrollBars.cpp"/>

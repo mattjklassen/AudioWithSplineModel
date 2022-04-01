@@ -166,15 +166,15 @@ float MetaSpline::value(float t)  // assumes we have bcoeffs
 void MetaSpline::printData()
 {
     DBG("degree d = " << d << ", k = " << n-d << ", a = " << a << ", b = " << b);
-    DBG("numOutputs:  " << numOutputs);
+//    DBG("numOutputs:  " << numOutputs);
 //    DBG("subintervals: ");
 //    for (int i=0; i<k+1; i++) {
 //        DBG("u[" << i << "] = " << subintervals[i]);
 //    }
-//    DBG("inputs: ");
-//    for (int i=0; i<k+d; i++) {
-//        DBG("inputs[" << i << "] = " << inputs[i]);
-//    }
+    DBG("inputs: ");
+    for (int i=0; i<n; i++) {
+        DBG("inputs[" << i << "] = " << inputs[i]);
+    }
 //    DBG("diffs: ");
 //    for (int i=1; i<k+d; i++) {
 //        DBG("back diffs[" << i << "] = " << inputs[i] - inputs[i-1]);
@@ -183,20 +183,20 @@ void MetaSpline::printData()
     for (int i=0; i<n; i++) {
         DBG("targets[" << i << "] = " << targets[i]);
     }
-    DBG("knots: ");
-    for (int i=0; i<n+d; i++) {
-        DBG("knots[" << i << "] = " << knots[i]);
-    }
-    if (bcoeffs.size() > 0) {
-        DBG("bcoeffs: ");
-        for (int i=0; i<n; i++) {
-            DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
-        }
-    }
-    if (outputs.size() > 0) {
-        DBG("outputs: ");
-        for (int i=0; i<outputs.size(); i++) {
-            DBG("outputs[" << i << "] = " << outputs[i]);
-        }
-    }
+//    DBG("knots: ");
+//    for (int i=0; i<n+d; i++) {
+//        DBG("knots[" << i << "] = " << knots[i]);
+//    }
+//    if (bcoeffs.size() > 0) {
+//        DBG("bcoeffs: ");
+//        for (int i=0; i<n; i++) {
+//            DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
+//        }
+//    }
+//    if (outputs.size() > 0) {
+//        DBG("outputs: ");
+//        for (int i=0; i<outputs.size(); i++) {
+//            DBG("outputs[" << i << "] = " << outputs[i]);
+//        }
+//    }
 }

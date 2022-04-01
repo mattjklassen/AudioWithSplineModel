@@ -151,6 +151,8 @@ private:
 
     void graphButtonClicked();
 
+    void useDeltaModelButtonClicked();
+    
     void shadeButtonClicked();
    
     void targetButtonClicked();
@@ -235,7 +237,29 @@ private:
     
     void generateKeyCyclesCA();
     
+    float computeCycleSplineError(CycleSpline& cycle, AudioBuffer<float>& samples);
+    
+    float compareCycleSplineError(CycleSpline& cycle1, CycleSpline& cycle2, AudioBuffer<float>& samples);
+    
+    float compareSlopeError(CycleSpline& cycle1,  CycleSpline& cycle2, AudioBuffer<float>& samples);
+    
+    float bWithMinError(CycleSpline& cycle1,  CycleSpline& cycle2, int p);
+    
+    void computeCubicDeltaBcoeffs(float y0, float y1, CycleSpline cycle);
+    
+    void computeCubicPolyBcoeffs();
+    
+    void addDeltaToCycleBcoeffs(CycleSpline cycle);
+    
+    void computeModelWithDelta();
+    
+    void computeNewBcoeffs(CycleSpline& cycle);
+    
+    void setNewTargets(CycleSpline& cycle);
+    
     CycleSpline cycleParabola = CycleSpline(20, 0, 1);
+    
+    CycleSpline cubicDeltaSpline = CycleSpline(20, 0, 1);
     
     void setNew(CycleSpline& cycle);
     
@@ -276,6 +300,7 @@ private:
     juce::TextButton graphMetaSplinesButton;
     juce::ToggleButton normalizeCycleLengthButton;
     juce::ToggleButton randomizeButton;
+    juce::ToggleButton useDeltaModelButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
@@ -305,8 +330,9 @@ private:
     unsigned dataSize,          // size of data in bytes
              sampleRate,        // sample rate
              sampleCount;       // number of data samples
-    float freqGuess = 220;      // guess to determine cycle lengths
-    float samplesPerCycleGuess = 200.5;  // will calculate based on sampleRate/freqGuess
+    float freqGuess = 450;      // guess to determine cycle lengths
+    float samplesPerCycleGuess = 0;  // will calculate based on sampleRate/freqGuess
+    float averageSamplesPerCycle = 0;
     char buffer[44];            // for wav file header
     float w = 0, h = 0;         // width and height of display for MainContentComponent
     float leftEndPoint = 0;     // left endpoint in (float)samples of Interval to graph
@@ -323,6 +349,8 @@ private:
     float amplitudeFactor = 1;
     // zeros in audio data are computed based on linear interpolation between audio samples
     Array<float> cycleZeros;    // zeros marking endpoints of cycles in audio sample
+    Array<float> cycleBreakPoints;    // t-values marking endpoints of cycles in audio time line
+    Array<float> cycleErrors;         // error in comparing cycle i to cycle i-1 slopes
     Array<float> normalizedCycleZeros;  // make all cycles same length
     Array<float> allZeros;      // all zeros in audio sample
     Array<float> keyBcoeffs;
@@ -330,10 +358,12 @@ private:
     Array<int> keys;
     Array<MetaSpline> metaSplineArray;
     Array<CycleSpline> keyCycleArray;
+    Array<CycleSpline> allCycleArray;
     Array<float> maxSampleIndices;  // per cycle, sample index for max abs value
     Array<float> maxSampleValues;   // per cycle, abs max value at sample
     int lastSample;             // index of last sample = (int) lastZero
-    int numCycles;              // number of cycles computed, (int) (lengthInSeconds * freqGuess)
+    int numCycles;              // number of cycles computed was: (int) (lengthInSeconds * freqGuess)
+                                // now replaced by samplesPerCycle.size() = actual number of cycles
     int startIndex = 0;         // index of first cycle to graph
     int endIndex = 0;           // index of last cycle to graph
     int control = 0;            // for not randomizing cycles
@@ -357,8 +387,9 @@ private:
     bool randomizeBcoeffs = false;
     bool keysWithoutCycleInterp = false;
     bool oneCycleWithEnvelope = false;
+    bool modelWithDelta = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
-    double currentFrequency = 220.0, targetFrequency = 220.0;
+    double currentFrequency = 283, targetFrequency = 283;
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
     juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
     juce::Array<float> knotVals;        // this only depends on k and d
