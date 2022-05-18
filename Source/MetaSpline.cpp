@@ -60,7 +60,7 @@ MetaSpline::MetaSpline(int _n, int _m)
 MetaSpline::MetaSpline(int _n, int _m, int _numOutputs)
 {
     // sets all parameters and arrays of MetaSpline except for targets, bcoeffs and outputs
-    d = 3; n = _n; a = 0; b = 1; m = _m; numOutputs = _numOutputs;
+    d = 3; n = _n; a = 0; b = 1; m = _m; numOutputs = _numOutputs;  // = outputs.size()
     int k = n - d;
     float incr = 1 / (float)k;
     //  n = k + d;  // dimension of splines, also number of inputs

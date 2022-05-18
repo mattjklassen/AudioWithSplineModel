@@ -79,7 +79,7 @@ void MainContentComponent::addSliders()
 void MainContentComponent::sliderValueChanged (juce::Slider* slider)
 {
     if (! audioDataLoaded) {
-        return;
+//        return;
     }
     if (slider == &freqGuessSlider)
     {
@@ -111,5 +111,6 @@ void MainContentComponent::sliderValueChanged (juce::Slider* slider)
         amplitudeFactor = amplitudeSlider.getValue();
         graphView.setAmplitudeFactor(amplitudeFactor);
         graphView.repaint();
+//        DBG("amplitude reset to: " << amplitudeFactor);
     }
 }

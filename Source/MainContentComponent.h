@@ -54,8 +54,6 @@
 #include "bsp.h"
 #include "GraphComponent.h"
 
-
-
 //==============================================================================
 class MainContentComponent   : public juce::AudioAppComponent,
                                public juce::ChangeListener,
@@ -97,14 +95,30 @@ public:
     Value rEP;  // right End Point for graphing interval in graphView
     Value cycleRendered;  // set to i when cycle[i] is rendered by audio callback
 
-    
+    static constexpr auto fftOrder = 10;
+    static constexpr auto fftSize  = 1 << fftOrder;
+
 private:
+    
+//    [3]: Declare a dsp::FFT object to perform the forward FFT on.
+//    [4]: The fifo float array of size 1024 will contain our incoming audio data in samples.
+//    [5]: The fftData float array of size 2048 will contain the results of our FFT calculations.
+//    [6]: This temporary index keeps count of the amount of samples in the fifo.
+//    [7]: This temporary boolean tells us whether the next FFT block is ready to be rendered.
+    
+    juce::dsp::FFT forwardFFT;
+    std::array<float, fftSize> fifo;
+    std::array<float, fftSize * 2> fftData;
+    int fifoIndex = 0;
+    bool nextFFTBlockReady = false;
     
     enum TransportState
     {
         Stopped, Starting, Playing, Pausing, Paused, Stopping
     };
 
+    Array<int> computeCA(int n, Array<int> input);
+    
     void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
     
     void sliderValueChanged (juce::Slider* slider) override;
@@ -141,8 +155,14 @@ private:
   
     int getCycleNumber(float t);
     
+    void fftButtonClicked();
+    
+    void CAmodelButtonClicked();
+    
     void openButtonClicked();
 
+    void openOutput();
+    
     void closeButtonClicked();
     
     void playButtonClicked();
@@ -191,11 +211,15 @@ private:
     
     void writeModelToBuffer();
     
+    void writeScaleToBuffer();
+    
     void writeCycleInterpModelToBuffer();
     
     void modelWithoutCycleInterp();
     
     void writeKeyCyclesToBuffer();
+    
+    void writeKeyBcoeffsToFile();
     
     void writeCycleWithEnvToBuffer();
     
@@ -210,6 +234,10 @@ private:
     void writeNonKeyCyclesToBuffer();
     
     void writeNormalizedCyclesToBuffer();
+    
+    void writeNextCycleToBuffer(int J);
+    
+    void mixKeyBcoeffs();
     
     void computeAllCycles();
     
@@ -226,6 +254,14 @@ private:
     void addScrollbar();
     
     void randomizeButtonClicked();
+    
+    void useModelButtonClicked();
+    
+    void loadBcoeffsButtonClicked();
+    
+    void averageBcoeffsButtonClicked();
+    
+    void loadSmallModel();
     
     void setInterpSelectionsFalse();
     
@@ -249,6 +285,12 @@ private:
     
     void computeCubicPolyBcoeffs();
     
+    void computeSplinusoidBcoeffs();
+    
+    void computeSplinusoid2Bcoeffs();
+    
+    void computeCubicSinusoidBcoeffs();
+    
     void addDeltaToCycleBcoeffs(CycleSpline cycle);
     
     void computeModelWithDelta();
@@ -257,11 +299,35 @@ private:
     
     void setNewTargets(CycleSpline& cycle);
     
+    void loadBcoeffs(String filename, int d, int k, int numKeys, Array<float>& Bcoeffs);
+    
+    void getSplinusoidKeyBcoeffs();
+    
     CycleSpline cycleParabola = CycleSpline(20, 0, 1);
     
     CycleSpline cubicDeltaSpline = CycleSpline(20, 0, 1);
+   
+    CycleSpline cubicSinusoidSpline = CycleSpline(20, 0, 1);
+    
+    CycleSpline splinusoid = CycleSpline(20, 0, 1);
+    
+    CycleSpline splinusoid2 = CycleSpline(20, 0, 1);
+    
+    CycleSpline cycleCA = CycleSpline(20, 0, 1);
     
     void setNew(CycleSpline& cycle);
+    
+    void fftError(AudioBuffer<float>& samples);
+    
+    void pushNextSampleIntoFifo (float sample) noexcept;
+    
+    void nextCAcycle(int r);
+    
+    void initECA();
+    
+    void printECA();
+    
+    void initTimbreCoeffs();
     
     struct fileheader
     {
@@ -301,6 +367,7 @@ private:
     juce::ToggleButton normalizeCycleLengthButton;
     juce::ToggleButton randomizeButton;
     juce::ToggleButton useDeltaModelButton;
+    juce::ToggleButton useModelButton;
     juce::ScrollBar signalScrollBar;
     juce::Slider freqGuessSlider;
     juce::Label  freqGuessLabel;
@@ -314,6 +381,10 @@ private:
     juce::ComboBox interpSelector;
     juce::Random random;
     juce::TextButton nextRandomButton;
+    juce::TextButton computeFFTButton;
+    juce::TextButton CAmodelButton;
+    juce::TextButton loadBcoeffsButton;
+    juce::TextButton averageBcoeffsButton;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -341,9 +412,13 @@ private:
     float magnify = 1;          // to scale the size of Interval
     float magfactor = 1;        // accumulate to give magnification
     int numSamples = 2000;      // for width of (displayed) graph time interval in samples
-    int kVal = 50;              // k = number of subintervals for splines
-    int mVal = 20;               // m = multiple for key cycles (simple regular model)
+    int kVal = 30;              // k = number of subintervals for splines
+    int mVal = 5;               // m = multiple for key cycles (simple regular model)
     int dVal = 3;                // d = degree for splines, default 3
+    int rVal = 30;               // r = input param for ECA, default 30
+    int lengthInSecondsCA = 1;
+    int keysCA = 0;
+    int samplesPerCycleCA = 0;
     int sampleRendered = 0;
     int samplesPerSelectedCycle = 0;
     float amplitudeFactor = 1;
@@ -354,8 +429,47 @@ private:
     Array<float> normalizedCycleZeros;  // make all cycles same length
     Array<float> allZeros;      // all zeros in audio sample
     Array<float> keyBcoeffs;
+    
+    int numInstr = 0;
+    Array<float> guitarKeyBcoeffs;
+    Array<float> guitarpizzKeyBcoeffs;
+    Array<float> guitarharmKeyBcoeffs;
+    Array<float> fluteKeyBcoeffs;
+    Array<float> celloKeyBcoeffs;
+    Array<float> cellopizzKeyBcoeffs;
+    Array<float> cellopontKeyBcoeffs;
+    Array<float> marimbaKeyBcoeffs;
+    Array<float> clarinetKeyBcoeffs;
+    Array<float> stringsKeyBcoeffs;
+    Array<float> trumpetKeyBcoeffs;
+    Array<float> handbellKeyBcoeffs;
+    Array<float> pianoKeyBcoeffs;
+    Array<float> violinKeyBcoeffs;
+    Array<float> violinpizzKeyBcoeffs;
+    Array<float> violinpontKeyBcoeffs;
+    Array<float> bassoonKeyBcoeffs;
+    Array<float> celesteKeyBcoeffs;
+    Array<float> cimbalomKeyBcoeffs;
+    Array<float> enghornKeyBcoeffs;
+    Array<float> frhornKeyBcoeffs;
+    Array<float> oboeKeyBcoeffs;
+    Array<float> harpKeyBcoeffs;
+    Array<float> organKeyBcoeffs;
+    Array<float> vibraphoneKeyBcoeffs;
+    Array<float> wurliKeyBcoeffs;
+    Array<float> guitarpontKeyBcoeffs;
+    Array<float> theorboKeyBcoeffs;
+    Array<float> theorbopontKeyBcoeffs;
+    Array<float> splinusoidKeyBcoeffs;
+    Array<float> splinufuzzKeyBcoeffs;
+    Array<float> splinumid1KeyBcoeffs;
+    Array<float> splinumid2KeyBcoeffs;
+    
+    Array<float> timbreCoeffs;
+    
     Array<int> samplesPerCycle; // number of samples in each cycle of audio sample until last zero
     Array<int> keys;
+    Array<int> vectorECA;
     Array<MetaSpline> metaSplineArray;
     Array<CycleSpline> keyCycleArray;
     Array<CycleSpline> allCycleArray;
@@ -383,11 +497,15 @@ private:
     bool endsOnlyCycleInterp = false;
     bool normalizeCycleLength = false;
     bool addSubharmonic = false;
-    bool useEnvelope = true;
+    bool useEnvelope = false;
+    bool useADSR = false;
     bool randomizeBcoeffs = false;
     bool keysWithoutCycleInterp = false;
     bool oneCycleWithEnvelope = false;
     bool modelWithDelta = false;
+    bool modelWithoutDelta = false;
+    bool modelWithCA = false;
+    bool modelWithSmall = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
     double currentFrequency = 283, targetFrequency = 283;
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock

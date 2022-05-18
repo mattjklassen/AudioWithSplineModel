@@ -73,8 +73,6 @@ void MainContentComponent::updateAngleDelta()
     angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
     // angelDelta = frequency in radians/sample
 }
-
-
     
 void MainContentComponent::writeWavFile()
 {

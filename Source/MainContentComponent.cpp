@@ -11,7 +11,7 @@
 #include "MainContentComponent.h"
 
 MainContentComponent::MainContentComponent()
-    : lEP(0.0), rEP(1200.0), signalScrollBar(false), state (Stopped)
+    : lEP(0.0), rEP(1200.0), forwardFFT (fftOrder), signalScrollBar(false), state (Stopped)
 {
     setButtonColours();
     addButtons();
@@ -23,7 +23,7 @@ MainContentComponent::MainContentComponent()
     lEP.referTo(graphView.leftEP);
     rEP.referTo(graphView.rightEP);
     
-    setSize (1300, 600);
+    setSize (1400, 700);
 
     formatManager.registerBasicFormats();
     transportSource.addChangeListener (this);
@@ -80,10 +80,15 @@ void MainContentComponent::resized()
     playCycleWithEnvButton.setBounds (910, 10, 100, 20);
     graphMetaSplinesButton.setBounds (1020, 10, 100, 20);
     nextRandomButton.setBounds (1130, 10, 80, 20);
+    loadBcoeffsButton.setBounds (1220, 10, 80, 20);
+    averageBcoeffsButton.setBounds (1310, 10, 80, 20);
     graphModelButton.setBounds (90, 70, 100, 20);
     interpSelector.setBounds (200, 70, 200, 20);
     normalizeCycleLengthButton.setBounds (410, 70, 200, 20);
-    randomizeButton.setBounds (1100, 70, 200, 20);
+    computeFFTButton.setBounds (1080, 40, 80, 20);
+    CAmodelButton.setBounds (1190, 40, 80, 20);
+    randomizeButton.setBounds (1080, 70, 200, 20);
+    useModelButton.setBounds (1190, 70, 200, 20);
     useDeltaModelButton.setBounds (600, 70, 200, 20);
     auto freqGuessSliderLeft = 120;
     freqGuessSlider.setBounds (freqGuessSliderLeft, 40, 250, 20);

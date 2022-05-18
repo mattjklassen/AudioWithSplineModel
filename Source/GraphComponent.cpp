@@ -23,10 +23,10 @@ void GraphComponent::paint (juce::Graphics& g)
     g.setColour (juce::Colours::darkgrey);
     drawGraphBox(g, w, h);
     g.setColour (juce::Colours::blue);
-    if (graphCAmodel) {
-        graphModelOnly(g);
-        return;
-    }
+//    if (graphCAmodel) {
+//        graphModelOnly(g);
+//        return;
+//    }
     if (graphMetaSplinesOn) {
 //        graphMetaSplines(g);
         graphLinearMetaSplines(g);
@@ -136,6 +136,8 @@ void GraphComponent::setAmplitudeFactor(float _amplitudeFactor)
 void GraphComponent::setModelForGraph(AudioBuffer<float>& _modelBuffer)
 {
     modelBuffer = _modelBuffer;
+    leftEndPoint = 0;
+    rightEndPoint = 1000;
 }
 
 void GraphComponent::setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray)
@@ -227,6 +229,9 @@ void GraphComponent::findCyclesToGraph ()
 //    std::cout << "cycles to graph:  " << startIndex << " to " << endIndex << std::endl;
 }
 
+// This function should not use floatBuffer which is only filled with read from audio file.
+// Instead, should only use modelBuffer which is constructed and filled with model data, and
+// might be independent from any audio file read, in the synthesis case with CA for instance.
 void GraphComponent::graphModelOnly(juce::Graphics& g)
 {
     juce::Path modelGraph;
@@ -236,8 +241,13 @@ void GraphComponent::graphModelOnly(juce::Graphics& g)
     rightEP.setValue(rightEndPoint);
     int startSample = (int) leftEndPoint;
     float x = 0;
-    float s = floatBuffer.getSample(0, startSample);
+    float s = modelBuffer.getSample(0, startSample);
     float y = (1 - s) * h/2;
+//    DBG("start modelGraph: " << x << ", " << y);
+//    for (int i=0; i<10; i++) {
+//        s = modelBuffer.getSample(0, i);
+//        DBG("model sample " << i << ": " << s);
+//    }
     modelGraph.startNewSubPath (juce::Point<float> (x, y));
     int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
     float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
@@ -252,16 +262,13 @@ void GraphComponent::graphModelOnly(juce::Graphics& g)
             j = sampleCount-1;
             i = numSamples;
         }
-        s = floatBuffer.getSample(0, j);
+        s = modelBuffer.getSample(0, j);
         s *= amplitudeFactor;
         y = (1 - s) * h/2;
         g.setColour (juce::Colours::green);
         if (numSamples < 400) {
             drawDot(juce::Point<float> (x,y), g);
         }
-        s = modelBuffer.getSample(0, j);
-        s *= amplitudeFactor;
-        y = (1 - s) * h/2;
         modelGraph.lineTo (juce::Point<float> (x,y));
     }
     float myThickness = 1;
@@ -709,7 +716,7 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         PopupMenu m;
         m.addItem (1, "add key cycle");
         m.addItem (2, "remove key cycle");
-        m.addItem (3, "graph cycle spline");
+        m.addItem (3, "write cycle to file");
         m.addItem (4, "graph new cycle spline");
         
         const int result = m.show();
@@ -736,32 +743,23 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         else if (result == 3)
         {
             if (! audioLoaded) {
+                DBG("no audio loaded, cannot write cycle");
                 return;
             }
-            DBG("graphing cycle spline " << n);
-            juce::Point<int> P = event.getPosition();
-            juce::Point<float> Q (P.getX(),P.getY());
-            juce::Point<float> S = screenToSignalCoords(Q);
-            int n = getCycleNumber(S.getX());
-            if (highlightCycle == n) {
-                highlightCycle = -1;
-                graphSplineCycle = false;
-                plotTargets = false;
-            } else {
-                highlightCycle = n;
-            }
-            if (highlightCycle == n) {
-                float a = cycleZeros[n];
-                float b = cycleZeros[n+1];
-                cycleToGraph = CycleSpline(kVal, a, b);
-                computeCycleBcoeffs(cycleToGraph, floatBuffer);
-                computeCycleSplineOutputs(cycleToGraph);
-                graphSplineCycle = true;
-                graphNewSplineCycle = false;
-                cycleToGraph.printData();
-                cycles[0] = cycleToGraph;
-            }
-            repaint();
+            DBG("writing cycle spline " << n << " to file");
+
+            float a = cycleZeros[n];
+            float b = cycleZeros[n+1];
+            cycleToGraph = CycleSpline(kVal, a, b);
+            cycleToGraph.writeData();
+            
+//            computeCycleBcoeffs(cycleToGraph, floatBuffer);
+//            computeCycleSplineOutputs(cycleToGraph);
+//            graphSplineCycle = true;
+//            graphNewSplineCycle = false;
+//            cycleToGraph.printData();
+//            cycles[0] = cycleToGraph;
+
         }
         else if (result == 4) {
             float a = cycleZeros[n];
@@ -785,12 +783,11 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 cycleNew = CycleSpline(kVal, a, b);
                 setNewTargets(floatBuffer);   // initialize data for cycleNew
                 computeNewBcoeffs(floatBuffer);
-//                resetNewBcoeffs();
                 computeCycleSplineOutputs(cycleNew);
                 graphNewSplineCycle = true;
                 graphSplineCycle = false;
                 cycles[0] = cycleNew;
-                cycleNew.printData();
+//                cycleNew.printData();
                 repaint();
             }
         }
@@ -821,6 +818,7 @@ void GraphComponent::resetNewBcoeffs()
 
 void GraphComponent::iterateCA() {
     
+    DBG("iterating CA");
     int n = kVal + 3;
 //    for (int i=2; i<n-2; i++) {
 //        cycleNew.bcoeffs.set(i, 0);
@@ -843,21 +841,42 @@ void GraphComponent::iterateCA() {
 //        if (r < 0.1) {
 //            val += s;
 //        }
+    // This is Gamma_epsilon
+//    for (int i=2; i<n-2; i++) {
+//        float r = juce::Random::getSystemRandom().nextFloat();
+//        float s = juce::Random::getSystemRandom().nextFloat();
+//        s = 2 * s - 1; // random float in [-1,1]
+//        s *= 0.05;      // now random float in [-s,s]
+//        float a1 = temp[i-1];
+//        float a2 = temp[i];
+//        float a3 = temp[i+1];
+//        float h = 2.9; // / (float) kVal;
+//        float val = (a1 +a2+ a3) / h;
+////        float val = (a1 + a2 + a3) / h;
+//        if (r < 0.1) {
+//            val += s;
+//        }
+//        cycleNew.bcoeffs.set(i, val);
+//    }
+    // This is Delta or Tau or Gamma, also with epsilon and X_p
+    // compute those CA local rules for bcoeffs with prob 1-eps and
     for (int i=2; i<n-2; i++) {
-        float r = juce::Random::getSystemRandom().nextFloat();
-        float s = juce::Random::getSystemRandom().nextFloat();
-        s = 2 * s - 1; // random float in [-1,1]
-        s *= 0.05;      // now random float in [-s,s]
+        float r = juce::Random::getSystemRandom().nextFloat();  // random float in [0,1]
+        float p = juce::Random::getSystemRandom().nextFloat();
+        p = 2*p-1;  // random float in [-1,1]
+        p *= 0.3;   // random float in [-0.3,0.3]
+//        p = 0;      // uncomment this to turn off X_p
         float a1 = temp[i-1];
         float a2 = temp[i];
         float a3 = temp[i+1];
-        float h = 2.9; // / (float) kVal;
-        float val = (a1 +a2+ a3) / h;
-//        float val = (a1 + a2 + a3) / h;
-        if (r < 0.1) {
-            val += s;
+//        float val = (a2 + a1)/2;  // val for Tau
+        float val = (a1 + a2 + a3)/3;  // val for Gamma
+//        float val = a2 - a1;    // val for Delta
+        float epsilon = 0.2;
+//        epsilon = -1;  // uncomment this to turn off epsilon, so always update bcoeff
+        if (r > epsilon) {
+            cycleNew.bcoeffs.set(i, val+p);
         }
-        cycleNew.bcoeffs.set(i, val);
     }
 }
 
@@ -877,8 +896,10 @@ void GraphComponent::randomizeNewCycle()
 //            cycleNew.bcoeffs.set(i, val);
 //        }
 //    }
+
     
-    // this is one is basically a low pass filter
+//    this one is averaging with probability (tau_{epsilon}?)
+//
 //    for (int i=2; i<n-2; i++) {
 //        float r = juce::Random::getSystemRandom().nextFloat();
 //        r = 2 * r - 1; // random float in [-1,1]
@@ -919,13 +940,70 @@ void GraphComponent::randomizeNewCycle()
     repaint();
 }
 
+
+// cubic polynomial p(t) = t*(t-1/2)*(t-1) has B-spline coefficients
+// computed from its polar form F[x,y,z] = x*y*z -(1/2)(x*y + x*z + y*z) + (1/6)*(x+y+z)
+void GraphComponent::computeCubicSinusoidBcoeffs()
+{
+    int k = kVal;
+    int d = 3;
+    int n = k + d;
+    int N = n + d;
+    cubicSinusoidSpline.k = k;
+    cubicSinusoidSpline.d = d;
+    cubicSinusoidSpline.inputs.clear();
+    cubicSinusoidSpline.targets.clear();
+    cubicSinusoidSpline.knots.clear();
+    cubicSinusoidSpline.bcoeffs.clear();
+    float incr = 1 / (float) k;
+    
+    cubicSinusoidSpline.knots.add(0);  // knot t_0
+    cubicSinusoidSpline.knots.add(0);  // knot t_1
+    cubicSinusoidSpline.knots.add(0);  // knot t_2
+    cubicSinusoidSpline.knots.add(0);  // knot t_3
+    for (int i=4; i<N-3; i++) {
+        cubicSinusoidSpline.knots.add(cubicSinusoidSpline.knots[i-1]+incr);
+    }
+    cubicSinusoidSpline.knots.add(1);  // knot t_{N-3}
+    cubicSinusoidSpline.knots.add(1);  // knot t_{N-2}
+    cubicSinusoidSpline.knots.add(1);  // knot t_{N-1}
+    cubicSinusoidSpline.knots.add(1);  // knot t_N
+    
+    float val = 0, a = 0, b = 0, c = 0;
+    for (int i=0; i<n; i++) {
+        a = cubicSinusoidSpline.knots[i+1];
+        b = cubicSinusoidSpline.knots[i+2];
+        c = cubicSinusoidSpline.knots[i+3];
+        val = a*b*c - (0.5)*(a*b + a*c + b*c) + (a+b+c) / (float)6;
+        val *= 5;
+        if (i > 0 && i < n-1) {
+            if (mVal > 1) {
+                if (i % 2 == 0)
+                    val += (float(mVal) / (float)100);
+                else {
+                    val -= (float(mVal) / (float)100);
+                }
+            }
+        }
+        cubicSinusoidSpline.bcoeffs.set(i, val);
+    }
+}
+
 void GraphComponent::computeNewBcoeffs(AudioBuffer<float>& floatBuffer)
 {
+    int k = cycleNew.k, d = cycleNew.d;
+    int n = k + d;  // n is full dimension
+    // -----------------------------------------------------
+    // hijacking this function temporarily in order to graph cubic function: t(t-0.5)(t-1)
+    computeCubicSinusoidBcoeffs();
+//    for (int i=0; i<n; i++) {
+//        cycleNew.bcoeffs.set(i, cubicSinusoidSpline.bcoeffs[i]);
+//    }
+//    return;
+    // -----------------------------------------------------
     // assume bcoeffs[0] = bcoeffs[n-1] = 0, and compute the other n-2
     // this means B-spline graph will hit target 0 at the ends
     // also bcoeffs[1] and bcoeffs[n-2] control the derivatives at the ends
-    int k = cycleNew.k, d = cycleNew.d;
-    int n = k + d;  // n is full dimension
     float val = 0;
     juce::Array<float> A;
     juce::Array<float> B;

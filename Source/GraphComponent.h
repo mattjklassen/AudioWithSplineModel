@@ -60,8 +60,8 @@ public:
     int mVal = 1;
     float freqGuess = 70;
     float magnify = 1;
-    float leftEndPoint;
-    float rightEndPoint;
+    float leftEndPoint = 0;
+    float rightEndPoint = 0;
     float w, h;
     unsigned sampleCount;
     unsigned sampleRate;
@@ -115,6 +115,8 @@ public:
     
     CycleSpline cycleNew = CycleSpline(20, 0, 1);
     
+    CycleSpline cubicSinusoidSpline = CycleSpline(20, 0, 1);
+    
 //    Array<CycleSpline> cyclesToPlay;
     
     Array<MetaSpline> metaSplineArray;
@@ -127,7 +129,9 @@ public:
     
     void iterateCA();
     
-    void resetNewBcoeffs();    
+    void resetNewBcoeffs();
+    
+    void computeCubicSinusoidBcoeffs();
     
 private:
     

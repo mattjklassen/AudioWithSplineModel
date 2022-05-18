@@ -43,6 +43,8 @@ public:
     
     void printData();
     
+    void writeData();
+    
     float value(float t);
     
 };

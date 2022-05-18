@@ -16,7 +16,7 @@ CycleSpline::CycleSpline()
     d = 3; k = 20; a = 0; b = 1; y0 = 0; y1 = 0;
 }
 
-// now this intialization is changed to use new knot sequence, and y0, y1
+// now this intialization is changed to use new knot sequence, inputs, and y0, y1
 CycleSpline::CycleSpline(int _k, float _a, float _b)
 {
     isKey = true;
@@ -110,6 +110,62 @@ float CycleSpline::value(float t)
     return output;
 }
 
+void CycleSpline::writeData()
+{
+    int n = k + d;
+    auto file = File::getSpecialLocation(File::userHomeDirectory).getChildFile("cycle.txt");
+    FileOutputStream output (file);
+    if (output.openedOk())
+    {
+        output.setPosition (0);  // default would append
+        output.truncate();
+        for (int i=0; i<n; i++) {
+            output.writeFloat(bcoeffs[i]);
+        }
+    }
+    
+//    DBG("degree d = " << d << ", k = " << k << ", a = " << a << ", b = " << b);
+//    DBG("y0 = " << y0 << ", y1 = " << y1);
+//    DBG("subintervals: ");
+//    for (int i=0; i<k+1; i++) {
+//        DBG("u[" << i << "] = " << subintervals[i]);
+//    }
+//    if (inputs.size() > 0) {
+//        DBG("inputs: ");
+//        for (int i=0; i<inputs.size(); i++) {
+//            DBG("inputs[" << i << "] = " << inputs[i]);
+//        }
+//    }
+//    DBG("diffs: ");
+//    for (int i=1; i<k+d; i++) {
+//        DBG("back diffs[" << i << "] = " << inputs[i] - inputs[i-1]);
+//    }
+//    if (targets.size() > 0) {
+//        DBG("targets: ");
+//        for (int i=0; i<targets.size(); i++) {
+//            DBG("targets[" << i << "] = " << targets[i]);
+//        }
+//    }
+//    if (knots.size() > 0) {
+//        DBG("knots: ");
+//        for (int i=0; i<k+2*d+1; i++) {
+//            DBG("knots[" << i << "] = " << knots[i]);
+//        }
+//    }
+//    if (bcoeffs.size() > 0) {
+//        DBG("bcoeffs: ");
+//        for (int i=0; i<k+d; i++) {
+//            DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
+//        }
+//    }
+//    if (outputs.size() > 0) {
+//        DBG("outputs: ");
+//        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
+//            DBG("outputs[" << i << "] = " << outputs[i]);
+//        }
+//    }
+}
+
 void CycleSpline::printData()
 {
     DBG("degree d = " << d << ", k = " << k << ", a = " << a << ", b = " << b);
@@ -128,12 +184,12 @@ void CycleSpline::printData()
 //    for (int i=1; i<k+d; i++) {
 //        DBG("back diffs[" << i << "] = " << inputs[i] - inputs[i-1]);
 //    }
-    if (targets.size() > 0) {
-        DBG("targets: ");
-        for (int i=0; i<targets.size(); i++) {
-            DBG("targets[" << i << "] = " << targets[i]);
-        }
-    }
+//    if (targets.size() > 0) {
+//        DBG("targets: ");
+//        for (int i=0; i<targets.size(); i++) {
+//            DBG("targets[" << i << "] = " << targets[i]);
+//        }
+//    }
 //    if (knots.size() > 0) {
 //        DBG("knots: ");
 //        for (int i=0; i<k+2*d+1; i++) {
@@ -146,12 +202,12 @@ void CycleSpline::printData()
             DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
         }
     }
-    if (outputs.size() > 0) {
-        DBG("outputs: ");
-        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
-            DBG("outputs[" << i << "] = " << outputs[i]);
-        }
-    }
+//    if (outputs.size() > 0) {
+//        DBG("outputs: ");
+//        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
+//            DBG("outputs[" << i << "] = " << outputs[i]);
+//        }
+//    }
 }
 
 // old version with simple knots sequence

@@ -37,7 +37,7 @@ private:
               app (a)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (c, true);  
+            setContentOwned (c, true);
 
            #if JUCE_ANDROID || JUCE_IOS
             setFullScreen (true);

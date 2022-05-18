@@ -562,7 +562,12 @@ void computeCycleSplineOutputs(CycleSpline& cycle)
     float length = b - a;
     float max = 0;
     int maxI = 0;
+    if (a < 0) {
+        a -= 1;
+    }
     int numSamples = (int) b - (int) a;
+//    DBG("a: " << a << " b: " << b << " (int)a: " << (int)a << " (int)b: " << (int)b);
+//    DBG("numSamples: " << numSamples);
     float denom, fac1, fac2, t, fval;
     int Imin = (int)ceil(a);       // first sample index
     int Imax = Imin + numSamples - 1;  // last sample index
