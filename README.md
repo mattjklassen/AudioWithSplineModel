@@ -25,3 +25,10 @@ To do a simple test on this current version, as of April 1, 2022:
 19. Note: intermediate cycles are only approximating the shape of original cycles, move around and zoom in and out to see more
 20. click "Play Model" (this is pretty close to the original despite only using about 2.5% of the original amount of data)
 21. the data reduction is approximate, based on 1/2 of samples per cycle, and 1/20 of cycles, so 1/40 = 0.025 of original data
+
+As of May 17, I added new instrument files, so here is a test to run:
+
+1. Run the program and when it opens push the button one back from the right side called "load Bcoeffs". 
+2. This reads in a bunch of binary files of floats [instrument].keyBcoeffs and produces and loads a graph.
+3. Play the output file by hitting the spacebar or clicking Play.
+4. You should hear a chromatic scale starting on middle C, which starts out sounding like a french horn and then morphs into a cello.
