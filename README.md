@@ -1,9 +1,7 @@
 # AudioWithSplineModel
 audio with spline modeling
 
-This README is way overdue!  Mostly due to research and paper-writing constraints which make for bad coding practices!
-
-To do a simple test on this current version, as of April 1, 2022:
+To do a simple test on this version, as of April 1, 2022:
 
 1. open A450.wav
 2. play back sound file with space bar
@@ -26,7 +24,7 @@ To do a simple test on this current version, as of April 1, 2022:
 20. click "Play Model" (this is pretty close to the original despite only using about 2.5% of the original amount of data)
 21. the data reduction is approximate, based on 1/2 of samples per cycle, and 1/20 of cycles, so 1/40 = 0.025 of original data
 
-As of May 17, I added new instrument files, so here is a test to run:
+As of May 17, 2022, I added new instrument Bcoeff files, so here is a test to run:
 
 1. Run the program and when it opens push the button one back from the right side called "load Bcoeffs". 
 2. This reads in a bunch of binary files of floats [instrument].keyBcoeffs and produces and loads a graph.
