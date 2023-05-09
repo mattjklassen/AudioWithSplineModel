@@ -3,7 +3,7 @@
 <JUCERPROJECT name="AudioSplineModeling" companyName="JUCE" version="1.1.0"
               userNotes="Plays audio files." companyWebsite="http://juce.com"
               projectType="guiapp" useAppConfig="0" addUsingNamespaceToJuceHeader="1"
-              id="YDJpjK" jucerFormatVersion="1">
+              id="YDJpjK" jucerFormatVersion="1" defines="JUCE_MODAL_LOOPS_PERMITTED = 1">
   <MAINGROUP id="mM0A9o" name="AudioSplineModeling">
     <GROUP id="{F24ADD0A-7CE6-82C4-AB15-3EAA624A0801}" name="Source">
       <FILE id="jHDQy5" name="CircularBuffer.cpp" compile="1" resource="0"
