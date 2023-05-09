@@ -79,12 +79,14 @@ void MainContentComponent::addSliders()
 void MainContentComponent::sliderValueChanged (juce::Slider* slider)
 {
     if (! audioDataLoaded) {
-//        return;
+        return;
     }
     if (slider == &freqGuessSlider)
     {
         freqGuess = freqGuessSlider.getValue();
-        reComputeZeros();
+        if (audioDataLoaded) {
+            reComputeZeros();
+        }
         findMaxValuesPerCycle(maxSampleIndices, maxSampleValues, cycleZeros, floatBuffer);
         graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess, maxSampleIndices, maxSampleValues);
         graphView.callShadeCycles = false;
@@ -94,6 +96,7 @@ void MainContentComponent::sliderValueChanged (juce::Slider* slider)
         kVal = kValSlider.getValue();
         DBG("new kVal:  " << kVal);
         graphView.setkVal(kVal);
+        graphView.nextBspline = 0;
         graphView.repaint();
     }
     if (slider == &mValSlider)

@@ -31,17 +31,19 @@ void MainContentComponent::drawScrollBox(juce::Graphics& g)
     g.strokePath (path, myType);
 }
 
+// don't allow graph window to have rightEndPoint past end of last full cycle
 void MainContentComponent::scrollBarMoved (ScrollBar* scrollBarThatHasMoved ,
                                  double newRangeStart)
 {
+    int n = graphView.cycleZeros.size();
     double newRangeL = scrollBarThatHasMoved->getCurrentRange().getStart();
     graphView.leftEndPoint = (float) newRangeL / 1000 * (float) graphView.sampleCount;
     graphView.rightEndPoint = graphView.leftEndPoint + (float) graphView.numSamples;
-    if (graphView.rightEndPoint > graphView.sampleCount-1) {
-        graphView.rightEndPoint = (float) graphView.sampleCount-1;
+    if (graphView.rightEndPoint > graphView.cycleZeros[n-1]) {
+        graphView.rightEndPoint = (float) graphView.cycleZeros[n-1];
         graphView.leftEndPoint = graphView.rightEndPoint - (float) graphView.numSamples;
         graphView.hardRight = true;
-//        DBG("set hardRight true");
+        DBG("set hardRight true");
     }
     if (newRangeL == 0) {
         graphView.hardLeft = true;

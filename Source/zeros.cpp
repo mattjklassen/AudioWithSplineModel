@@ -82,18 +82,14 @@ float interpFloat(float input, AudioBuffer<float>& floatBuffer)
 
 int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float>& floatBuffer,  Array<float>& allZeros)
 {
-    float Spp = (float)sampleRate / (float)Freq;  // samples per period guess
-    int S = (int)Spp;  // generic guess at (int) samples per period
+//    float Spp = (float)sampleRate / (float)Freq;  // samples per period guess
+//    int S = (int)Spp;  // generic guess at (int) samples per period
 //    DBG("samples per period guess: " << S);
-    int J1 = S*Periods; // max number of samples to scan
+//    int J1 = S*Periods; // max number of samples to scan
     int lastSample = floatBuffer.getNumSamples();
   
     // float Guess;  // for next zero close to period
     int J = 0;  // for big loop on samples
-    // float J2 = 0.0f;  // total count of samples
-  
-//    short *samples = reinterpret_cast<short*>(data);
-    // unsigned n = size/2; // number of data samples
 
     int NumAllZeros = 0;
     // float LastZero = 0.0f;
@@ -124,19 +120,18 @@ int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float
     {
         neg0=1;
     }
-    
-    // set max for J approximately by number of cycles or periods
-    // to be scanned times the samples per period, or just
-    // the number of samples
-    
-    // i is index for allzeros[]
-    
-//    for (J=1; J<J1; J++)  // loop on samples
+
     for (J=1; J<lastSample; J++)  // loop on samples
     {
        foundzero = 0;
        if (floatBuffer.getSample(0, J) == 0)
        {
+           if (J < lastSample-1) {
+               if (floatBuffer.getSample(0, J+1) == 0)
+               {
+//                   DBG("found consec zeros at sample: " << J);
+               }
+           }
            foundzero = 1;
            zero1 = (float)(J);
        }
@@ -151,11 +146,11 @@ int FindAllZerosFloat(int sampleRate, int Periods, float Freq, AudioBuffer<float
            // added Dec 1, 2021:
            // keep zeros away from endpoints of interval between samples:
            if (zero < 0.01) {
-//               std::cout << "zero:  " << zero << std::endl;
+//               std::cout << "J: " << J << "  zero:  " << zero << std::endl;
                zero = 0.01;
            }
            if (zero > 0.99) {
-//               std::cout << "zero:  " << zero << std::endl;
+//               std::cout << "J: " << J << "  zero:  " << zero << std::endl;
                zero = 0.99;
            }
            // so zeros are not exactly at sample values
@@ -194,7 +189,7 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
 {
     //  cout << endl << "Zeros Closest to Periods:" << endl << endl;
     //  cout << "Index    Sample   Difference" << endl << endl;
-    
+//    DBG("in FindZCTP");
     // Now find zeros[] which are the closest to periods
     // zeros[0]=0, Guess for zeros[1] is zeros[0]+SPP
     // Step through allzeros[], find one closest to Guess
@@ -216,9 +211,20 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
     // J1 = S*Periods; // max number of samples to scan
     float Guess = cycleZeros[0] + Spp; // for next zero close to period
     int J = 0;  // for loop on Periods
-    float zero0, zero1;
+    float zero0, zero1, small;
+    bool moreToDo = true;
     
-    for (J=1; J<Periods+10; J++)
+//    zero0 = 58594.0;
+    small = 0.001;
+//    DBG("computing stuff:");
+//    std::cout << "zero0: " << std::fixed << std::setprecision(8) << zero0 << std::endl;
+//    std::cout << "small: " << std::fixed << std::setprecision(8) << small << std::endl;
+//    zero0 += small;
+//    std::cout << "sum: " << std::fixed << std::setprecision(8) << zero0 << std::endl;
+
+//    for (J=1; J<Periods+10; J++)
+    J = 1;
+    while (moreToDo)
     {
         while (Guess > allZeros[i])
         {
@@ -226,26 +232,51 @@ int FindZerosClosestToPeriods(int sampleRate, int Periods, float Freq, Array<flo
         }
         zero1 = allZeros[i];
         zero0 = allZeros[i-1];
+        float diff = 0.0;
         if ( abs(Guess - zero1) < abs(Guess - zero0) )
         {
+//            diff = abs(zero1-floor(zero1));
+//            DBG(J << ":  " << zero1 << "  floor:  " << floor(zero1) << "  diff:  " << diff);
+//            if (diff < 0.001) {
+//                DBG("found small diff");
+//                zero1 += small;
+//            }
+//            DBG(J << ": (NEW) " << zero1 << "  floor:  " << floor(zero1) << "  diff:  " << diff);
+//            std::cout << J << ": (NEW) " << std::fixed << std::setprecision(8) << zero1 << std::endl;
             cycleZeros.add(zero1);
         } else {
+//            diff = abs(zero0-floor(zero0));
+//            DBG(J << ":  " << zero0 << "  floor:  " << floor(zero0) << "  diff:  " << diff);
+//            if (diff < 0.001) {
+//                DBG("found small diff");
+//                zero0 += small;
+//            }
+////            DBG(J << ": (NEW) " << zero0 << "  floor:  " << floor(zero0) << "  diff:  " << diff);
+//            std::cout << J << ": (NEW) " << std::fixed << std::setprecision(8) << zero0 << std::endl;
             cycleZeros.add(zero0);
         }
+        if (abs(cycleZeros[J] - floor(cycleZeros[J])) < 0.001) {
+            float temp = cycleZeros[J] + 0.001;
+            cycleZeros.set(J, temp);
+        }
         samplesPerCycle.add(int(cycleZeros[J]) - int(cycleZeros[J-1]));
-        // cout << setw(4) << J << ":  "
-          //   << fixed
-          //   << setw(8) << setprecision(2) << zeros[J] << "  "
-          //   << fixed
-          //   << setw(6) << setprecision(2) << SPP[J] << endl;
+//         std::cout << std::setw(4) << J << ":  "
+//             << std::fixed
+//             << std::setw(8) << std::setprecision(3) << "  "
+//             << std::fixed
+//             << std::setw(6) << std::setprecision(3) << std::endl;
+//        std::cout << J << ":  " << std::fixed << std::setprecision(8) << cycleZeros[J] << std::endl;
         Guess = cycleZeros[J] + Spp;
         if (Guess > LastZero) {
-            DBG("Guess " << Guess << " is > LastZero " << LastZero);
-//            cycleZeros.add(LastZero);
-            DBG("J: " << J << "  cycZeros.size(): " << cycleZeros.size());
-            DBG("last cycleZero: " << cycleZeros[cycleZeros.size()-1]);
-            break;
+//            DBG("Guess " << Guess << " is > LastZero " << LastZero);
+////            cycleZeros.add(LastZero);
+//            DBG("J: " << J << "  cycZeros.size(): " << cycleZeros.size());
+//            DBG("last cycleZero: " << cycleZeros[cycleZeros.size()-1]);
+////            break;
+//            DBG("no more To Do");
+            moreToDo = false;
         }
+        J += 1;
     } // end for J
     
         return J;   // This is number of zeros found by checking close to periods

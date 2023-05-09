@@ -38,6 +38,10 @@ void GraphComponent::paint (juce::Graphics& g)
     if (updateGraph) {
         graphSignal(g);
     }
+    if (updateModelGraph) {
+//        graphModelOnly(g);
+        graphModel(g);
+    }
     if (audioLoaded) {
         findCyclesToGraph();
     }
@@ -45,23 +49,25 @@ void GraphComponent::paint (juce::Graphics& g)
         shadeCycles(g);
     }
     if (graphSplineCycle) {
-        graphSpline(g, cycleToGraph);
+        graphSpline2(g, cycleToGraph);
     }
     if (graphNewSplineCycle) {
-        graphSpline(g, cycleNew);
+        graphSpline2(g, cycleNew);
     }
     if (graphParabolicSpline) {
         graphSpline(g, cycleParabola);
     }
     if (plotTargets) {
-        plotTargetPoints(g, cycleToGraph);
+//        DBG("plotTargets true in paint function");
+        plotTargetPoints(g, cycleNew);
     }
     if (mouseOverCycleZero) {
         g.setColour (juce::Colours::yellow);
-        drawLargeDot(zeroPoint, g);
+//        drawLargeDot(zeroPoint, g);
     }
 }
 
+// initial window length in samples is 1000
 void GraphComponent::reset()
 {
     leftEndPoint = 0;
@@ -191,6 +197,16 @@ void GraphComponent::setZerosForGraph(Array<float>& _cycleZeros, Array<float>& _
 //    DBG("number of zeros:  " << allZeros.size());
 }
 
+void GraphComponent::setAllCycleArray(Array<CycleSpline> _allCycleArray)
+{
+    allCycleArray = _allCycleArray;
+}
+
+void GraphComponent::setDeltaCycleArray(Array<CycleSpline> _deltaCycleArray)
+{
+    deltaCycleArray = _deltaCycleArray;
+}
+
 void GraphComponent::setBreakPointsForGraph(Array<float>& _cycleBreakPoints, Array<int>& _samplesPerCycle)
 {
     cycleBreakPoints = _cycleBreakPoints;
@@ -229,6 +245,30 @@ void GraphComponent::findCyclesToGraph ()
 //    std::cout << "cycles to graph:  " << startIndex << " to " << endIndex << std::endl;
 }
 
+void GraphComponent::graphModelCycle(int i, juce::Graphics& g)
+{
+    CycleSpline cycle = CycleSpline(kVal, 0, 1);
+    if (graphDeltaModel) {
+//        DBG("setting cycle with deltaCycleArray");
+        cycle = deltaCycleArray[i];
+    } else {
+//        DBG("setting cycle with allCycleArray");
+        cycle = allCycleArray[i];
+//        cycle.printData();
+    }
+    graphSpline2(g, cycle);
+}
+
+void GraphComponent::graphModel(juce::Graphics& g)
+{
+    findCyclesToGraph();
+//    DBG("found cycles to graph");
+    for (int i = startIndex; i < endIndex + 1; i++) {
+//        DBG("graphing cycle: " << i);
+        graphModelCycle(i, g);
+    }
+}
+
 // This function should not use floatBuffer which is only filled with read from audio file.
 // Instead, should only use modelBuffer which is constructed and filled with model data, and
 // might be independent from any audio file read, in the synthesis case with CA for instance.
@@ -239,42 +279,113 @@ void GraphComponent::graphModelOnly(juce::Graphics& g)
     // set Value objects which will be used to set scrollBar
     leftEP.setValue(leftEndPoint);
     rightEP.setValue(rightEndPoint);
-    int startSample = (int) leftEndPoint;
-    float x = 0;
-    float s = modelBuffer.getSample(0, startSample);
-    float y = (1 - s) * h/2;
-//    DBG("start modelGraph: " << x << ", " << y);
-//    for (int i=0; i<10; i++) {
-//        s = modelBuffer.getSample(0, i);
-//        DBG("model sample " << i << ": " << s);
-//    }
-    modelGraph.startNewSubPath (juce::Point<float> (x, y));
-    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
-    float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
-    int j = 1;
-    for (int i=1; i < numSamples; i++) {
-        if (i * mult > numSamples) {
-            break;
-        }
-        x = x + mult * xincr;
-        j = startSample + i * mult;
-        if (j > sampleCount-1) {
-            j = sampleCount-1;
-            i = numSamples;
-        }
-        s = modelBuffer.getSample(0, j);
-        s *= amplitudeFactor;
-        y = (1 - s) * h/2;
-        g.setColour (juce::Colours::green);
-        if (numSamples < 400) {
-            drawDot(juce::Point<float> (x,y), g);
-        }
-        modelGraph.lineTo (juce::Point<float> (x,y));
-    }
+    juce::Point<float> P1;
+//    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
     float myThickness = 1;
     juce::PathStrokeType myType = PathStrokeType(myThickness);
     g.setColour (juce::Colours::blue);
-    g.strokePath (modelGraph, myType);
+    float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
+    float x = 0, y = 0, s = 0;
+    int zeroIndex = 0;
+    // Here we compute the cycle zeros (or endpoints) occuring inside the graph window
+    x = cycleZeros[zeroIndex];
+    float cZ1 = -1;  // first cycleZero inside window, or last one to the left of leftEndPoint
+    while (x < rightEndPoint) {
+        if (x > leftEndPoint) {
+            if (cZ1 < 0) {
+                cZ1 = x;
+                s = interpFloat(x, modelBuffer);
+                s *= amplitudeFactor;
+                y = (1-s)*h/2;
+                P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+            }
+            x = x - leftEndPoint;
+            x *= xincr;
+            y = h/2;
+//            drawDot(juce::Point<float> (x,y), g);
+        }
+        zeroIndex += 1;
+        x = cycleZeros[zeroIndex];
+    }
+    // plot model graph from first cycleZero
+    juce::Path firstCycle;  //  starts at cZ1, where there is already a dot
+    juce::Path zeroCycle;  //  starts at cZ1 and works backwards
+    firstCycle.startNewSubPath (P1);
+    zeroCycle.startNewSubPath (P1);
+    x = (float)(((int)cZ1) + 1);
+    s = interpFloat(x, modelBuffer);
+    s *= amplitudeFactor;
+    y = (1-s)*h/2;
+    P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+    firstCycle.lineTo(P1);
+    if (numSamples < 400) {
+        drawDot(P1, g);
+    }
+    while (x < rightEndPoint) {
+        x += 1;
+        s = interpFloat(x, modelBuffer);
+        s *= amplitudeFactor;
+        y = (1-s)*h/2;
+        P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+        firstCycle.lineTo(P1);
+        if (numSamples < 400) {
+            drawDot(P1, g);
+        }
+    }
+    g.setColour (juce::Colours::darkgrey);
+    g.strokePath (firstCycle, myType);
+    x = (float)((int)cZ1);
+    s = interpFloat(x, modelBuffer);
+    s *= amplitudeFactor;
+    y = (1-s)*h/2;
+    P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+    zeroCycle.lineTo(P1);
+    if (numSamples < 400) {
+        drawDot(P1, g);
+    }
+    while (x > leftEndPoint) {
+        x -= 1;
+        s = interpFloat(x, modelBuffer);
+        s *= amplitudeFactor;
+        y = (1-s)*h/2;
+        P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+        zeroCycle.lineTo(P1);
+        if (numSamples < 400) {
+            drawDot(P1, g);
+        }
+    }
+    g.strokePath (zeroCycle, myType);
+//
+//
+//    // old
+//    int startSample = (int) leftEndPoint;
+//    float x = 0;
+//    float s = modelBuffer.getSample(0, startSample);
+//    float y = (1 - s) * h/2;
+//    modelGraph.startNewSubPath (juce::Point<float> (x, y));
+//    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
+//    float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
+//    int j = 1;
+//    for (int i=1; i < numSamples; i++) {
+//        if (i * mult > numSamples) {
+//            break;
+//        }
+//        x = x + mult * xincr;
+//        j = startSample + i * mult;
+//        if (j > sampleCount-1) {
+//            j = sampleCount-1;
+//            i = numSamples;
+//        }
+//        s = modelBuffer.getSample(0, j);
+//        s *= amplitudeFactor;
+//        y = (1 - s) * h/2;
+//        g.setColour (juce::Colours::green);
+//        if (numSamples < 400) {
+//            drawDot(juce::Point<float> (x,y), g);
+//        }
+//        modelGraph.lineTo (juce::Point<float> (x,y));
+//    }
+
 }
 
 // to graph signal: leftEndPoint and rightEndPoint determine the graph window
@@ -284,60 +395,144 @@ void GraphComponent::graphModelOnly(juce::Graphics& g)
 // graph y=f(x) with x=0 to some number (samples), y=-1 to 1
 // in pixels: x goes from 0 to w, and y from 0 (down) to h
 
+// need to restrict graph window to have rightEndPoint not exceeding the end of the last cycle.
+
 void GraphComponent::graphSignal(juce::Graphics& g)
 {
     juce::Path signalGraph;
-    juce::Path modelGraph;
+    juce::Point<float> P1;
     scaleInterval();
     // set Value objects which will be used to set scrollBar
     leftEP.setValue(leftEndPoint);
     rightEP.setValue(rightEndPoint);
-    int startSample = (int) leftEndPoint;
-    float x = 0;
-    float s = floatBuffer.getSample(0, startSample);
-    float y = (1 - s) * h/2;
-    signalGraph.startNewSubPath (juce::Point<float> (x, y));
-    if (updateModelGraph) {
-        modelGraph.startNewSubPath (juce::Point<float> (x, y));
-    }
-    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
+//    if (leftEndPoint > 10000)
+//    {
+//        DBG("leftEndpoint > 10000");
+//    }
+//    if (rightEndPoint > 50000)
+//    {
+//        DBG("rightEndpoint > 60319");
+//    }
+    float x = 0, y = 0, s = 0;
+//    int mult = getMult(numSamples);  // to graph fewer samples as numSamples grows
     float xincr = w / (rightEndPoint - leftEndPoint); // convert 1 sample to screen coords
-    int j = 1;
-    for (int i=1; i < numSamples; i++) {
-        if (i * mult > numSamples) {
-            break;
-        }
-        x = x + mult * xincr;
-        j = startSample + i * mult;
-        if (j > sampleCount-1) {
-            j = sampleCount-1;
-            i = numSamples;
-        }
-        s = floatBuffer.getSample(0, j);
-        s *= amplitudeFactor;
-        y = (1 - s) * h/2;
-        signalGraph.lineTo (juce::Point<float> (x,y));
-        g.setColour (juce::Colours::green);
-        if (numSamples < 400) {
-            drawDot(juce::Point<float> (x,y), g);
-        }
-        if (updateModelGraph) {
-            if (j < modelBuffer.getNumSamples()) {
-                s = modelBuffer.getSample(0, j);
-                s *= amplitudeFactor;
-                y = (1 - s) * h/2;
-                modelGraph.lineTo (juce::Point<float> (x,y));
-            }
-        }
-    }
+//    int j = 1;
+//    // changing i=1 to i=0 6/3/22
+//    for (int i=0; i < numSamples; i++) {
+//        if (i * mult > numSamples) {
+//            break;
+//        }
+//        x = x + mult * xincr;
+//        j = startSample + i * mult;
+//        if (j > sampleCount-1) {
+//            j = sampleCount-1;
+//            i = numSamples;
+//        }
+//        s = floatBuffer.getSample(0, j);
+//        s *= amplitudeFactor;
+//        y = (1 - s) * h/2;
+//        signalGraph.lineTo (juce::Point<float> (x,y));
+//        g.setColour (juce::Colours::green);
+//        if (numSamples < 400) {
+////            drawDot(juce::Point<float> (x,y), g);
+//        }
+//        if (updateModelGraph) {
+//            if (j < modelBuffer.getNumSamples()) {
+//                s = modelBuffer.getSample(0, j);
+//                s *= amplitudeFactor;
+//                y = (1 - s) * h/2;
+//                modelGraph.lineTo (juce::Point<float> (x,y));
+//            }
+//        }
+//    }
     float myThickness = 1;
     juce::PathStrokeType myType = PathStrokeType(myThickness);
     g.setColour (juce::Colours::darkgrey);
-    g.strokePath (signalGraph, myType);
-    if (updateModelGraph) {
-        g.setColour (juce::Colours::blue);
-        g.strokePath (modelGraph, myType);
+    int zeroIndex = 0;
+    // Here we graph the cycle zeros (or endpoints) occuring inside the graph window
+    x = cycleZeros[zeroIndex];
+    float cZ1 = -1;  // first cycleZero inside window, or last one to the left of leftEndPoint
+    while (x < rightEndPoint) {
+        if (x > leftEndPoint) {
+            if (cZ1 < 0) {
+                cZ1 = x;
+                s = interpFloat(x, floatBuffer);
+                s *= amplitudeFactor;
+                y = (1-s)*h/2;
+                P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+            }
+            x = x - leftEndPoint;
+            x *= xincr;
+            y = h/2;
+//            drawDot(juce::Point<float> (x,y), g);
+        }
+        zeroIndex += 1;
+        // crashes on this line with infinite loop, going beyond audio data
+        x = cycleZeros[zeroIndex];
     }
+    if (cZ1 < 0) {
+        zeroIndex -= 1;
+        x = cycleZeros[zeroIndex];
+        cZ1 = x;
+        s = interpFloat(x, floatBuffer);
+        s *= amplitudeFactor;
+        y = (1-s)*h/2;
+        P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+    }
+
+    // plot signal graph from first cycleZero
+    juce::Path firstCycle;  //  starts at cZ1, where there is already a dot
+    juce::Path zeroCycle;  //  starts at cZ1 and works backwards
+    firstCycle.startNewSubPath (P1);
+    zeroCycle.startNewSubPath (P1);
+    x = (float)(((int)cZ1) + 1);
+    s = interpFloat(x, floatBuffer);
+    s *= amplitudeFactor;
+    y = (1-s)*h/2;
+    P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+    firstCycle.lineTo(P1);
+    if (numSamples < 400) {
+        drawDot(P1, g);
+    }
+    while (x < rightEndPoint) {
+        x += 1;
+        s = interpFloat(x, floatBuffer);
+        s *= amplitudeFactor;
+        y = (1-s)*h/2;
+        P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+        firstCycle.lineTo(P1);
+        if (numSamples < 400) {
+            drawDot(P1, g);
+        }
+    }
+    g.setColour (juce::Colours::darkgrey);
+    g.strokePath (firstCycle, myType);
+    x = (float)((int)cZ1);
+    s = interpFloat(x, floatBuffer);
+    s *= amplitudeFactor;
+    y = (1-s)*h/2;
+    P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+    zeroCycle.lineTo(P1);
+    if (numSamples < 400) {
+        drawDot(P1, g);
+    }
+    while (x > leftEndPoint) {
+        x -= 1;
+        s = interpFloat(x, floatBuffer);
+        s *= amplitudeFactor;
+        y = (1-s)*h/2;
+        P1 = juce::Point<float> (xincr*(x - leftEndPoint),y);
+        zeroCycle.lineTo(P1);
+        if (numSamples < 400) {
+            drawDot(P1, g);
+        }
+    }
+    g.strokePath (zeroCycle, myType);
+}
+
+void GraphComponent::plotSample(float s, juce::Graphics& g)
+{
+    
 }
 
 void GraphComponent::graphLinearMetaSplines(juce::Graphics& g)
@@ -439,6 +634,48 @@ void GraphComponent::graphSpline (juce::Graphics& g, CycleSpline& cycle)
     g.strokePath (graph, myType);
 }
 
+// This one uses delta values y0 and y1
+void GraphComponent::graphSpline2 (juce::Graphics& g, CycleSpline& cycle)
+{
+    float diff = cycle.a - (float)((unsigned)cycle.a);
+//    DBG("cycle.a  " << cycle.a << "  diff  " << diff);
+    // graph cycle spline from a to b using outputs at each sample
+    juce::Path graph;
+    juce::Point<float> P_a(cycle.a,cycle.y0 * amplitudeFactor);
+    juce::Point<float> P_a2(cycle.a, amplitudeFactor);
+    if (graphingBasisSplines && nextBspline == 0) {
+        P_a = P_a2;
+    }
+    P_a = signalToScreenCoords(P_a);
+    graph.startNewSubPath (P_a);
+    float x, y;
+    unsigned I = (unsigned) cycle.a + 1;
+    unsigned J = (unsigned) cycle.b + 1;
+    if (diff < 0.001) {
+        I -= 1;
+        J -= 1;
+    }
+    for (int i=0; i<J-I; i++) {
+        x = (float) i+I;
+        y = cycle.outputs[i];
+        y *= amplitudeFactor;
+        juce::Point<float> P(x,y);
+        P = signalToScreenCoords(P);
+        graph.lineTo(P);
+    }
+    juce::Point<float> P_b(cycle.b,cycle.y1 * amplitudeFactor);
+    juce::Point<float> P_b2(cycle.b, amplitudeFactor);
+    if (graphingBasisSplines && nextBspline == kVal+2) {
+        P_b = P_b2;
+    }
+    P_b = signalToScreenCoords(P_b);
+    graph.lineTo(P_b);
+    float myThickness = 1;
+    juce::PathStrokeType myType = PathStrokeType(myThickness);
+    g.setColour (juce::Colours::blue);
+    g.strokePath (graph, myType);
+}
+
 
 int GraphComponent::getMult(int numSamples) {
     int mult = 1;
@@ -482,16 +719,22 @@ void GraphComponent::drawLargeDot(juce::Point<float> (P), juce::Graphics& g)
 
 void GraphComponent::shadeCycle(int n, juce::Graphics& g)
 {
-    float xincr = float(w) / float(numSamples);  // one sample in screen coords
+    float sampleWidth = rightEndPoint - leftEndPoint;
+    float xincr = float(w) / sampleWidth;  // one sample in screen coords
     float tval1 = cycleZeros[n] - leftEndPoint;
-    juce::Point<float> P (1, 1);  // upper left pt of rectangle to shade
+//    juce::Point<float> P (1, 1);  // upper left pt of rectangle to shade
+    juce::Point<float> P (0, 0);  // upper left pt of rectangle to shade
     if (tval1 > 0) {
         P.setX(tval1 * xincr);
+        P.setX(lastRight);
     }
     float tval2 = rightEndPoint - cycleZeros[n+1];
-    juce::Point<float> Q (w - 1, h - 1);  // lower right pt of rectangle to shade
+//    juce::Point<float> Q (w - 1, h - 1);  // lower right pt of rectangle to shade
+    juce::Point<float> Q (w, h);  // lower right pt of rectangle to shade
     if (tval2 > 0) {
-        Q.setX(w + 1 - tval2 * xincr);
+//        Q.setX(w + 1 - tval2 * xincr);
+        Q.setX(w - tval2 * xincr);
+        lastRight = Q.x;
     }
     juce::Rectangle<float> toShade (P, Q);
     g.setColour (cycleColours[n % 5]);
@@ -527,6 +770,7 @@ void GraphComponent::shadeCycle(int n, juce::Graphics& g)
 
 void GraphComponent::shadeCycles(juce::Graphics& g)
 {
+    lastRight = 0;
     for (int i = startIndex; i < endIndex + 1; i++)
     {
         shadeCycle(i, g);
@@ -542,11 +786,13 @@ void GraphComponent::mouseWheelMove (const MouseEvent& event, const MouseWheelDe
         if (leftEndPoint + 100 * addoffset < 0) {
             addoffset = 0;
             hardLeft = true;
+            DBG("set hardLeft = true");
             return;
         }
         if (rightEndPoint + 100 * addoffset > sampleCount-1) {
             addoffset = 0;
             hardRight = true;
+            DBG("set hardRight = true");
             return;
         }
         hardLeft = false;
@@ -558,6 +804,7 @@ void GraphComponent::mouseWheelMove (const MouseEvent& event, const MouseWheelDe
             leftEndPoint = 0;
         }
         if (rightEndPoint > sampleCount-1) {
+            DBG("hit right end point");
             rightEndPoint = sampleCount-1;
         }
         repaint();
@@ -590,11 +837,11 @@ void GraphComponent::scaleInterval()
         if (leftEndPoint < 0) {
             leftEndPoint = 0;
         }
-        if (rightEndPoint > sampleCount) {
-            rightEndPoint = sampleCount;
+        if (rightEndPoint > sampleCount-1) {
+            rightEndPoint = sampleCount-1;
             leftEndPoint = rightEndPoint - (float) numSamples;
         }
-        numSamples = (int) rightEndPoint - leftEndPoint;
+        numSamples = ((int)rightEndPoint) - ((int)leftEndPoint);
         magnify = 1;
     }
 }
@@ -662,19 +909,36 @@ void GraphComponent::plotMetaSplineTargets(juce::Graphics& g)
     repaint();
 }
 
+// 6/6/22:  adding delta for target points
 void GraphComponent::plotTargetPoints(juce::Graphics& g, CycleSpline& cycle)
 {
+//    DBG("plotting targets in plotTargetPoints");
     juce::Point<float> P;
     juce::Point<float> Q;
-    g.setColour (juce::Colours::red);
-    int n = cycle.inputs.size();
-    for (int i=0; i<n; i++) {
-        P.setX(cycle.inputs[i]);
+    int size = cycle.inputs.size();
+//    DBG("cycleNew.inputs.size: " << size);
+    for (int i=0; i<size; i++) {
+        P.setX(cycle.a + (cycle.b - cycle.a) * cycle.inputs[i]);
         float y = cycle.targets[i];
+        
+        float t = cycleNew.inputs[i];
+        // add delta spline:
+        float delta = cycleNew.y1 - cycleNew.y0;
+        y += cycleNew.y0;
+        y += delta * t*t*(3-2*t);   // target value subtracts delta cubic to compute Bcoeffs
+        
         y *= amplitudeFactor;
         P.setY(y);
         Q = signalToScreenCoords(P);
-        drawDot(Q, g);
+//        DBG("target point Q: " << Q.toString());
+        g.setColour (juce::Colours::red);
+        drawLargeDot(Q, g);
+        g.setColour (juce::Colours::black);
+        P.setY(0);
+        Q = signalToScreenCoords(P);
+        if (i > 0 && i < size-1) {
+            drawDot(Q, g);
+        }
     }
     repaint();
 }
@@ -717,7 +981,9 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         m.addItem (1, "add key cycle");
         m.addItem (2, "remove key cycle");
         m.addItem (3, "write cycle to file");
-        m.addItem (4, "graph new cycle spline");
+        m.addItem (4, "graph cycle spline");
+        m.addItem (5, "graph basis spline");
+        m.addItem (6, "with coefficient");
         
         const int result = m.show();
         juce::Point<int> P = event.getPosition();
@@ -764,6 +1030,10 @@ void GraphComponent::mouseDown (const MouseEvent& event)
         else if (result == 4) {
             float a = cycleZeros[n];
             float b = cycleZeros[n+1];
+//            float diff = a - (float)((unsigned)a);
+//            if (diff < 0.001) {
+//                a += 0.001;
+//            }
 //            cycleParabola = CycleSpline(kVal, a, b);
 //            setParabolicTargets(0.01);
 //            computeParabolicBcoeffs();
@@ -776,21 +1046,131 @@ void GraphComponent::mouseDown (const MouseEvent& event)
                 highlightCycle = -1;
                 graphNewSplineCycle = false;
                 plotTargets = false;
+                repaint();
             } else {
                 highlightCycle = n;
             }
             if (highlightCycle == n) {
+                DBG("in highlightCycle == n");
                 cycleNew = CycleSpline(kVal, a, b);
+                float y0 = interpFloat(a, floatBuffer);
+                float y1 = interpFloat(b, floatBuffer);
+                cycleNew.y0 = y0;
+                cycleNew.y1 = y1;
                 setNewTargets(floatBuffer);   // initialize data for cycleNew
                 computeNewBcoeffs(floatBuffer);
                 computeCycleSplineOutputs(cycleNew);
                 graphNewSplineCycle = true;
                 graphSplineCycle = false;
-                cycles[0] = cycleNew;
-//                cycleNew.printData();
+//                cycles[0] = cycleNew;
                 repaint();
             }
         }
+        else if (result == 5) {
+            useBcoeff = false;
+            graphingBasisSplines = true;
+            float a = cycleZeros[n];
+            float b = cycleZeros[n+1];
+            DBG("graphing basis spline");
+//            if (highlightCycle == n) {
+//                highlightCycle = -1;
+//                graphNewSplineCycle = false;
+//                plotTargets = false;
+//                repaint();
+//            } else {
+//                highlightCycle = n;
+//            }
+//            if (highlightCycle == n) {
+//                DBG("in highlightCycle == n");
+                cycleNew = CycleSpline(kVal, a, b);
+//                float y0 = interpFloat(a, floatBuffer);
+//                float y1 = interpFloat(b, floatBuffer);
+//                cycleNew.y0 = y0;
+//                cycleNew.y1 = y1;
+            setNewTargets(floatBuffer);   // initialize data for cycleNew
+            computeNewBcoeffs(floatBuffer);
+            for (int j=0; j<kVal+3; j++) {
+                if (j == nextBspline) {
+                    cycleNew.bcoeffs.set(j,1);
+                } else {
+                    cycleNew.bcoeffs.set(j,0);
+                }
+            }
+//            cycleNew.bcoeffs.set(nextBspline,1);
+            computeCycleSplineOutputs(cycleNew);
+            graphNewSplineCycle = true;
+            graphSplineCycle = false;
+            repaint();
+//            }
+        }
+        else if (result == 6) {
+            graphingBasisSplines = false;
+            useBcoeff = true;
+            float a = cycleZeros[n];
+            float b = cycleZeros[n+1];
+            DBG("graphing basis spline");
+//            if (highlightCycle == n) {
+//                highlightCycle = -1;
+//                graphNewSplineCycle = false;
+//                plotTargets = false;
+//                repaint();
+//            } else {
+//                highlightCycle = n;
+//            }
+//            if (highlightCycle == n) {
+//                DBG("in highlightCycle == n");
+                cycleNew = CycleSpline(kVal, a, b);
+//                float y0 = interpFloat(a, floatBuffer);
+//                float y1 = interpFloat(b, floatBuffer);
+//                cycleNew.y0 = y0;
+//                cycleNew.y1 = y1;
+            setNewTargets(floatBuffer);   // initialize data for cycleNew
+            computeNewBcoeffs(floatBuffer);
+            for (int j=0; j<kVal+3; j++) {
+                if (j == nextBspline) {
+                    // leave it
+                } else {
+                    cycleNew.bcoeffs.set(j,0);
+                }
+            }
+//            cycleNew.bcoeffs.set(nextBspline,1);
+            computeCycleSplineOutputs(cycleNew);
+            if (nextBspline == 0) {
+                cycleNew.outputs.set(0,1);
+            }
+            graphNewSplineCycle = true;
+            graphSplineCycle = false;
+            repaint();
+//            }
+        }
+    }
+}
+
+void GraphComponent::graphNextBspline()
+{
+    int n = highlightCycle;
+    if (n > 0) {
+        float a = cycleZeros[n];
+        float b = cycleZeros[n+1];
+        DBG("graphing basis spline: " << nextBspline);
+        cycleNew = CycleSpline(kVal, a, b);
+        setNewTargets(floatBuffer);   // initialize data for cycleNew
+        computeNewBcoeffs(floatBuffer);
+        for (int j=0; j<kVal+3; j++) {
+            if (j == nextBspline) {
+                if (useBcoeff) {
+                    // leave it
+                } else {
+                    cycleNew.bcoeffs.set(j,1);
+                }
+            } else {
+                cycleNew.bcoeffs.set(j,0);
+            }
+        }
+        computeCycleSplineOutputs(cycleNew);
+        graphNewSplineCycle = true;
+        graphSplineCycle = false;
+        repaint();
     }
 }
 
@@ -1116,6 +1496,7 @@ void GraphComponent::mouseMove (const MouseEvent& event)
     }
 }
 
+// 6/6/2022 adjusted to subtract delta spline for target outputs
 void GraphComponent::setNewTargets(AudioBuffer<float>& floatBuffer)
 {
     int k = cycleNew.k;
@@ -1126,8 +1507,8 @@ void GraphComponent::setNewTargets(AudioBuffer<float>& floatBuffer)
     cycleNew.targets.clear();
     cycleNew.knots.clear();
     cycleNew.bcoeffs.clear();
-    DBG("printData after clear:");
-    cycleNew.printData();
+//    DBG("printData after clear:");
+//    cycleNew.printData();
     
     float incr = 1 / (float) k;
     cycleNew.inputs.add(0.5*incr);
@@ -1158,13 +1539,17 @@ void GraphComponent::setNewTargets(AudioBuffer<float>& floatBuffer)
     for (int i=0; i<n-2; i++) {
         float t = cycleNew.inputs[i];
         float output = interpFloat(a + t * (b-a), floatBuffer);
+        // subtract delta spline:
+        float delta = cycleNew.y1 - cycleNew.y0;
+        output -= cycleNew.y0;
+        output -= delta * t*t*(3-2*t);   // target value subtracts delta cubic
         cycleNew.targets.set(i, output);
     }
     
-    DBG("New params set for CycleSpline knot sequence: ");
-    DBG("N = " << N << " n = " << n << " k = " << k);
-    for (int i=0; i<N+1; i++) {
-        std::cout << cycleNew.knots[i] << " ";
-    }
-    DBG("");
+//    DBG("New params set for CycleSpline knot sequence: ");
+//    DBG("N = " << N << " n = " << n << " k = " << k);
+//    for (int i=0; i<N+1; i++) {
+//        std::cout << cycleNew.knots[i] << " ";
+//    }
+//    DBG("");
 }

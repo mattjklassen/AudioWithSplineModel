@@ -110,6 +110,7 @@ float CycleSpline::value(float t)
     return output;
 }
 
+// write cycle bcoeffs to file
 void CycleSpline::writeData()
 {
     int n = k + d;
@@ -202,15 +203,15 @@ void CycleSpline::printData()
             DBG("bcoeffs[" << i << "] = " << bcoeffs[i]);
         }
     }
-//    if (outputs.size() > 0) {
-//        DBG("outputs: ");
-//        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
-//            DBG("outputs[" << i << "] = " << outputs[i]);
-//        }
-//    }
+    if (outputs.size() > 0) {
+        DBG("outputs: ");
+        for (int i=0; i<outputs.size(); i++) {  // outputs.size()
+            DBG("outputs[" << i << "] = " << outputs[i]);
+        }
+    }
 }
 
-// old version with simple knots sequence
+// old version with simple knot sequence
 //CycleSpline::CycleSpline(int _k, float _a, float _b)
 //{
 //    isKey = true;

@@ -34,6 +34,9 @@ public:
     
     void setBreakPointsForGraph(Array<float>& _cycleBreakPoints, Array<int>& _samplesPerCycle);
     
+    void setAllCycleArray(Array<CycleSpline> allCycleArray);
+    void setDeltaCycleArray(Array<CycleSpline> deltaCycleArray);
+    
     void setMetaSplinesForGraph(Array<MetaSpline>& _metaSplineArray);
     void setModelForGraph(AudioBuffer<float>& _modelBuffer);
     void setkVal(int _kVal);
@@ -55,6 +58,8 @@ public:
     bool plotTargets = false;
     bool hardLeft = true;
     bool hardRight = true;
+    bool useBcoeff = false;
+    bool graphingBasisSplines = false;
     int numSamples = 1000;
     int kVal = 20;
     int mVal = 1;
@@ -63,6 +68,7 @@ public:
     float leftEndPoint = 0;
     float rightEndPoint = 0;
     float w, h;
+    float lastRight = 0;   // for shading cycles: right end point of previous cycle to shade
     unsigned sampleCount;
     unsigned sampleRate;
     float addoffset = 0;
@@ -72,6 +78,7 @@ public:
     int endIndex = 0;
     int metaSplineIndex = 0;
     int highlightCycle = -1;  // positive number is cycle to highlight
+    int nextBspline = 0;
     juce::Colour highlightColour;
     Array<juce::Colour> cycleColours;
     Array<float> cycleBreakPoints;   // replaces zeros for delta model
@@ -93,6 +100,8 @@ public:
     bool drawCurve = false;
     bool mouseOverCycleZero = false;
     bool graphCAmodel = false;
+    bool graphDeltaModel = false;
+    bool preserveDelta = false;     // to use y1 and y0 from delta model in new interp
     
     juce::Point<float> signalToScreenCoords (juce::Point<float> P);
     juce::Point<float> screenToSignalCoords (juce::Point<float> Q);
@@ -116,10 +125,12 @@ public:
     CycleSpline cycleNew = CycleSpline(20, 0, 1);
     
     CycleSpline cubicSinusoidSpline = CycleSpline(20, 0, 1);
-    
-//    Array<CycleSpline> cyclesToPlay;
-    
+        
     Array<MetaSpline> metaSplineArray;
+    
+    Array<CycleSpline> allCycleArray;
+    
+    Array<CycleSpline> deltaCycleArray;
     
     CycleSpline cycles[10];
     
@@ -132,6 +143,8 @@ public:
     void resetNewBcoeffs();
     
     void computeCubicSinusoidBcoeffs();
+    
+    void graphNextBspline();
     
 private:
     
@@ -188,6 +201,16 @@ private:
     void computeNewBcoeffs(AudioBuffer<float>& floatBuffer);
         
     void setNewTargets(AudioBuffer<float>& floatBuffer);
+    
+    void plotSample(float s, juce::Graphics& g);
+    
+    void graphSpline2 (juce::Graphics& g, CycleSpline& cycle);
+    
+    void graphModelCycle(int i, juce::Graphics& g);
+    
+    void graphModel (juce::Graphics& g);
+    
+    
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GraphComponent)

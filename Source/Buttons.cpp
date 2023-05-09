@@ -30,12 +30,15 @@ void MainContentComponent::openButtonClicked()
             cycleZeros.clear();
             allZeros.clear();
             samplesPerCycle.clear();
-            computeZeros();
+//            computeZeros() is turned off here!
+//            computeZeros();
             findMaxValuesPerCycle(maxSampleIndices, maxSampleValues, cycleZeros, floatBuffer);
             graphView.setDataForGraph(floatBuffer, audioDataLoaded, numSamples, magnify,
                                       leftEndPoint, rightEndPoint, sampleCount, sampleRate, kVal);
             graphView.setZerosForGraph(cycleZeros, allZeros, samplesPerCycle, freqGuess, maxSampleIndices, maxSampleValues);
         
+            DBG("sample rate is:  " << (int)sampleRate);
+            
             // setting up to play back audio file (as in JUCE tutorial PlayingSoundFilesTutorial)
             if (reader != nullptr)
             {
@@ -192,6 +195,12 @@ void MainContentComponent::addButtons()
     averageBcoeffsButton.onClick = [this] { averageBcoeffsButtonClicked(); };
     averageBcoeffsButton.changeWidthToFitText();
     
+    addAndMakeVisible (&nextBsplineButton);
+    nextBsplineButton.setButtonText ("next Bspline");
+    nextBsplineButton.setColour (juce::TextButton::buttonColourId, buttonColours[2]);
+    nextBsplineButton.onClick = [this] { nextBsplineButtonClicked(); };
+    nextBsplineButton.changeWidthToFitText();
+    
     addAndMakeVisible (&useDeltaModelButton);
     useDeltaModelButton.setButtonText ("use Delta Model");
     useDeltaModelButton.setColour (juce::TextButton::buttonColourId, buttonColours[1]);
@@ -279,11 +288,14 @@ void MainContentComponent::shadeButtonClicked()
 void MainContentComponent::targetButtonClicked()
 {
     int n = graphView.highlightCycle;
+    DBG("highlightCycle = " << n);
     if ((n > -1) || graphView.graphMetaSplinesOn) {
         if (graphView.plotTargets) {
             graphView.plotTargets = false;
+            DBG("setting plotTargets = false");
         } else {
             graphView.plotTargets = true;
+            DBG("setting plotTargets = true");
         }
     }
     graphView.repaint();
@@ -354,6 +366,8 @@ void MainContentComponent::computeModelButtonClicked()
     graphView.keysToRemove.clear();
     graphView.modelLoaded = true;
     graphView.setModelForGraph(writeBuffer);
+    graphView.setAllCycleArray(allCycleArray);
+    graphView.setDeltaCycleArray(deltaCycleArray);
 }
 
 
@@ -363,7 +377,8 @@ void MainContentComponent::CAmodelButtonClicked()
     modelWithCA = true;
     initECA();
     lengthInSecondsCA = 1;
-    freqGuess = 261.6;  // middle C
+//    freqGuess = 261.6;  // middle C
+    freqGuess = 264;
     numCycles = (int)(freqGuess * lengthInSecondsCA);
     DBG("freqGuess: " << freqGuess << " numCycles: " << numCycles);
     keysCA = 5;
@@ -384,12 +399,13 @@ void MainContentComponent::loadBcoeffs(String filename, int d, int k, int numKey
 {
     DBG("loading Bcoeffs array for: " << filename);
     int n = k + d;  // dimension or number of bcoeffs for instrument models
-    auto file = File::getSpecialLocation(File::userHomeDirectory).getChildFile("SplineSoundFiles/"+filename);
+    auto file = File::getSpecialLocation(File::userHomeDirectory).getChildFile(filename);
     FileInputStream input (file);
     float val = 0;
     if (input.openedOk())
     {
         int size = (int) input.getTotalLength();
+        // new comment
         char data[size];
         input.read(data, size);
         float *bcoeffs = reinterpret_cast<float*>(data);
@@ -401,12 +417,12 @@ void MainContentComponent::loadBcoeffs(String filename, int d, int k, int numKey
                     max = abs(val);
                 }
                 if (abs(val) > 0.5) {
-                    DBG("bcoeff[" << i*n+p << "]: " << val);
+//                    DBG("bcoeff[" << i*n+p << "]: " << val);
                 }
                 Bcoeffs.set(i*n+p, val);
             }
         }
-        DBG("max bcoeff: " << max);
+//        DBG("max bcoeff: " << max);
     }
 }
 
@@ -441,39 +457,39 @@ void MainContentComponent::averageBcoeffsButtonClicked()
 void MainContentComponent::loadBcoeffsButtonClicked()
 {
     numInstr = 0;
-    loadBcoeffs("guitar.keyBcoeffs", 3, 30, 18, guitarKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("guitarpizz.keyBcoeffs", 3, 30, 18, guitarpizzKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("guitarpont.keyBcoeffs", 3, 30, 18, guitarpontKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("guitarharm.keyBcoeffs", 3, 30, 18, guitarharmKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("theorbo.keyBcoeffs", 3, 30, 18, theorboKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("theorbopont.keyBcoeffs", 3, 30, 18, theorbopontKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("flute.keyBcoeffs", 3, 30, 18, fluteKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("cello.keyBcoeffs", 3, 30, 18, celloKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("cellopizz.keyBcoeffs", 3, 30, 18, cellopizzKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("cellopont.keyBcoeffs", 3, 30, 18, cellopontKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("marimba.keyBcoeffs", 3, 30, 18, marimbaKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("clarinet.keyBcoeffs", 3, 30, 18, clarinetKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("strings.keyBcoeffs", 3, 30, 18, stringsKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("trumpet.keyBcoeffs", 3, 30, 18, trumpetKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("handbell.keyBcoeffs", 3, 30, 18, handbellKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("piano.keyBcoeffs", 3, 30, 18, pianoKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("violin.keyBcoeffs", 3, 30, 18, violinKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("violinpizz.keyBcoeffs", 3, 30, 18, violinpizzKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("violinpont.keyBcoeffs", 3, 30, 18, violinpontKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("bassoon.keyBcoeffs", 3, 30, 18, bassoonKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("celeste.keyBcoeffs", 3, 30, 18, celesteKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("cimbalom.keyBcoeffs", 3, 30, 18, cimbalomKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("enghorn.keyBcoeffs", 3, 30, 18, enghornKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("frhorn.keyBcoeffs", 3, 30, 18, frhornKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("harp.keyBcoeffs", 3, 30, 18, harpKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("oboe.keyBcoeffs", 3, 30, 18, oboeKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("organ.keyBcoeffs", 3, 30, 18, organKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("vibraphone.keyBcoeffs", 3, 30, 18, vibraphoneKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("wurli.keyBcoeffs", 3, 30, 18, wurliKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("splinusoid.keyBcoeffs", 3, 30, 18, splinusoidKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("splinufuzz.keyBcoeffs", 3, 30, 18, splinufuzzKeyBcoeffs); numInstr += 1;
-    loadBcoeffs("splinumid1.keyBcoeffs", 3, 30, 18, splinumid1KeyBcoeffs); numInstr += 1;
-    loadBcoeffs("splinumid2.keyBcoeffs", 3, 30, 18, splinumid2KeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/guitar.keyBcoeffs", 3, 30, 18, guitarKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/guitarpizz.keyBcoeffs", 3, 30, 18, guitarpizzKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/guitarpont.keyBcoeffs", 3, 30, 18, guitarpontKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/guitarharm.keyBcoeffs", 3, 30, 18, guitarharmKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/theorbo.keyBcoeffs", 3, 30, 18, theorboKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/theorbopont.keyBcoeffs", 3, 30, 18, theorbopontKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/flute.keyBcoeffs", 3, 30, 18, fluteKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/cello.keyBcoeffs", 3, 30, 18, celloKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/cellopizz.keyBcoeffs", 3, 30, 18, cellopizzKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/cellopont.keyBcoeffs", 3, 30, 18, cellopontKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/marimba.keyBcoeffs", 3, 30, 18, marimbaKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/clarinet.keyBcoeffs", 3, 30, 18, clarinetKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/strings.keyBcoeffs", 3, 30, 18, stringsKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/trumpet.keyBcoeffs", 3, 30, 18, trumpetKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/handbell.keyBcoeffs", 3, 30, 18, handbellKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/piano.keyBcoeffs", 3, 30, 18, pianoKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/violin.keyBcoeffs", 3, 30, 18, violinKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/violinpizz.keyBcoeffs", 3, 30, 18, violinpizzKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/violinpont.keyBcoeffs", 3, 30, 18, violinpontKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/bassoon.keyBcoeffs", 3, 30, 18, bassoonKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/celeste.keyBcoeffs", 3, 30, 18, celesteKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/cimbalom.keyBcoeffs", 3, 30, 18, cimbalomKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/enghorn.keyBcoeffs", 3, 30, 18, enghornKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/frhorn.keyBcoeffs", 3, 30, 18, frhornKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/harp.keyBcoeffs", 3, 30, 18, harpKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/oboe.keyBcoeffs", 3, 30, 18, oboeKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/organ.keyBcoeffs", 3, 30, 18, organKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/vibraphone.keyBcoeffs", 3, 30, 18, vibraphoneKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/wurli.keyBcoeffs", 3, 30, 18, wurliKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/splinusoid.keyBcoeffs", 3, 30, 18, splinusoidKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/splinufuzz.keyBcoeffs", 3, 30, 18, splinufuzzKeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/splinumid1.keyBcoeffs", 3, 30, 18, splinumid1KeyBcoeffs); numInstr += 1;
+    loadBcoeffs("KeyBcoeffs/splinumid2.keyBcoeffs", 3, 30, 18, splinumid2KeyBcoeffs); numInstr += 1;
     
     DBG("loaded " << numInstr << " instruments");
 //    keyBcoeffs = guitarKeyBcoeffs;
@@ -604,6 +620,7 @@ void MainContentComponent::graphMetaSplinesButtonClicked()
     graphView.setMetaSplinesForGraph(metaSplineArray);
     graphView.graphMetaSplinesOn = true;
     graphView.plotTargets = true;
+    DBG("setting plotTargets to true");
     graphView.repaint();
 }
 
@@ -617,6 +634,7 @@ void MainContentComponent::graphModelButtonClicked()
             graphView.updateModelGraph = true;
         }
     }
+//    if 
     graphView.setKeys(keys);
     graphView.repaint();
 }
@@ -648,9 +666,11 @@ void MainContentComponent::useDeltaModelButtonClicked()
 {
     if (useDeltaModelButton.getToggleState()) {
         modelWithDelta = true;
+        graphView.graphDeltaModel = true;
         DBG("useDeltaModel is now: true");
     } else {
         modelWithDelta = false;
+        graphView.graphDeltaModel = false;
         DBG("useDeltaModel is now: false");
     }
 }
@@ -678,4 +698,13 @@ void MainContentComponent::nextRandomButtonClicked()
         }
     }
 
+}
+
+void MainContentComponent::nextBsplineButtonClicked()
+{
+    graphView.nextBspline += 1;
+    if (graphView.nextBspline == kVal + 3) {
+        graphView.nextBspline = 0;
+    }
+    graphView.graphNextBspline();
 }

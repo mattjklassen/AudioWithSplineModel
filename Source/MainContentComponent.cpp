@@ -89,6 +89,7 @@ void MainContentComponent::resized()
     CAmodelButton.setBounds (1190, 40, 80, 20);
     randomizeButton.setBounds (1080, 70, 200, 20);
     useModelButton.setBounds (1190, 70, 200, 20);
+    nextBsplineButton.setBounds (1290, 40, 80, 20);
     useDeltaModelButton.setBounds (600, 70, 200, 20);
     auto freqGuessSliderLeft = 120;
     freqGuessSlider.setBounds (freqGuessSliderLeft, 40, 250, 20);
@@ -108,38 +109,43 @@ void MainContentComponent::computeZeros()
 {
     int freq = (int) freqGuess;     // = guess at frequency in Hz
     float lengthInSeconds = (float)sampleCount / (float)sampleRate;
-    int periods = (int) (lengthInSeconds * (float)freqGuess) + 1;  // = # Cycles
-    numCycles = periods;
-    DBG("numCycles:  " << numCycles);
-    int numKeyCycles = (int) ((float)numCycles / (float)mVal);
-    DBG("numKeyCycles:  " << numKeyCycles);
+//    int periods = (int) (lengthInSeconds * freqGuess) + 1;  // = # Cycles
+//    numCycles = periods;
+//    DBG("numCycles:  " << numCycles);
+//    int numKeyCycles = (int) ((float)numCycles / (float)mVal);
+//    DBG("numKeyCycles:  " << numKeyCycles);
+    int periods = 0;  // can get rid of this if not needed
     int numAllZeros = FindAllZerosFloat(sampleRate, periods, freq, floatBuffer, allZeros);
     float lastZero = allZeros[numAllZeros];
     int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
     // recompute numCycles:
     numCycles = samplesPerCycle.size();
-    DBG("numCycles:  " << numCycles);
+    numCycleZeros = cycleZeros.size();
+//    DBG("numCycles:  " << numCycles);
     lastSample = (int) lastZero;
     int actualLastSample = floatBuffer.getNumSamples() - 1;
-    DBG("Sample before last zero: " << lastSample);
-    DBG("Actual Last Sample: " << actualLastSample);
-    DBG("Number of Periods: " << periods);
-    DBG("Length in sec: " << lengthInSeconds);
+    DBG("last zero: " << lastZero);
+    DBG("last sample: " << lastSample);
+    DBG("numCycleZeros: " << numCycleZeros);
+    DBG("last cycle zero: " << cycleZeros[numCycleZeros-1]);
+//    DBG("Actual Last Sample: " << actualLastSample);
+//    DBG("Number of Periods: " << periods);
+//    DBG("Length in sec: " << lengthInSeconds);
     int totalSamples = 0;
     for (int i=0; i<samplesPerCycle.size(); i++) {
         totalSamples += samplesPerCycle[i];
     }
-    DBG("Sum of Samples per Cycle: " << totalSamples);
-    DBG("Last cycle zero: " << cycleZeros[cycleZeros.size()-1]);
+//    DBG("Sum of Samples per Cycle: " << totalSamples);
+//    DBG("Last cycle zero: " << cycleZeros[cycleZeros.size()-1]);
     // set normalized cycle lengths
     for (int i=0; i<cycleZeros.size(); i++) {
         normalizedCycleZeros.set(i, cycleZeros[1] * i);
     }
     samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
     float averageSamplesPerCycle = cycleZeros[cycleZeros.size()-1] / (float) cycleZeros.size();
-    DBG("average samples per cycle:  " << averageSamplesPerCycle);
-    DBG("number of zeros:  " << numAllZeros);
-    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+//    DBG("average samples per cycle:  " << averageSamplesPerCycle);
+//    DBG("number of zeros:  " << numAllZeros);
+//    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
 
     
 //    samplesPerCycle.sort();
@@ -160,21 +166,28 @@ void MainContentComponent::reComputeZeros()
     DBG("recomputing zeros and cycles");
     int freq = (int) freqGuess;     // = guess at frequency in Hz
     float lengthInSeconds = (float)sampleCount / (float)sampleRate;
-    int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
-    numCycles = periods;
+//    int periods = (int) (lengthInSeconds * freqGuess);  // = # Cycles
+//    numCycles = periods;
 //    DBG("numCycles:  " << numCycles);
-    int numKeyCycles = (int) ((float)numCycles / (float)mVal);
+//    int numKeyCycles = (int) ((float)numCycles / (float)mVal);
 //    DBG("numKeyCycles:  " << numKeyCycles);
     int numAllZeros = allZeros.size() - 1;
     float lastZero = allZeros[numAllZeros];
     cycleZeros.clear();
     samplesPerCycle.clear();
+    int periods = 0;
     int numZeros = FindZerosClosestToPeriods(sampleRate, periods, freq, cycleZeros, allZeros, samplesPerCycle, lastZero);
+    numCycles = samplesPerCycle.size();
     lastSample = (int) lastZero;
     samplesPerCycleGuess = (float) sampleRate / (float) freqGuess;
-    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
+//    DBG("samplesPerCycleGuess:  " << samplesPerCycleGuess);
     numCycles = samplesPerCycle.size();
-    DBG("numCycles:  " << numCycles);
+//    DBG("numCycles:  " << numCycles);
+//    for (int i=0; i<101; i++)
+//    {
+//        DBG("sample number: " << 60220+i);
+//        DBG("sample value:  " << floatBuffer.getSample(0, 60220+i));
+//    }
 }
 
 //

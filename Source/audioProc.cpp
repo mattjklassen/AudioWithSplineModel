@@ -143,6 +143,7 @@ void MainContentComponent::readAudioData2 (AudioFormatReader *reader) {
     
     sampleCount = (int) reader->lengthInSamples;
     sampleRate = (int) reader->sampleRate;
+    DBG("sampleRate: " << (int)sampleRate);
     DBG("reader->numChannels: " << (int)reader->numChannels);
     DBG("reader->lengthInSamples: " << (int)reader->lengthInSamples);
     floatBuffer.setSize ((int) reader->numChannels, (int) reader->lengthInSamples);

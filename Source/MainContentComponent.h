@@ -169,6 +169,8 @@ private:
     
     void stopButtonClicked();
 
+    void nextBsplineButtonClicked();
+    
     void graphButtonClicked();
 
     void useDeltaModelButtonClicked();
@@ -303,6 +305,8 @@ private:
     
     void getSplinusoidKeyBcoeffs();
     
+    void doNextBspline();
+    
     CycleSpline cycleParabola = CycleSpline(20, 0, 1);
     
     CycleSpline cubicDeltaSpline = CycleSpline(20, 0, 1);
@@ -385,6 +389,7 @@ private:
     juce::TextButton CAmodelButton;
     juce::TextButton loadBcoeffsButton;
     juce::TextButton averageBcoeffsButton;
+    juce::TextButton nextBsplineButton;
     
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -464,7 +469,6 @@ private:
     Array<float> splinufuzzKeyBcoeffs;
     Array<float> splinumid1KeyBcoeffs;
     Array<float> splinumid2KeyBcoeffs;
-    
     Array<float> timbreCoeffs;
     
     Array<int> samplesPerCycle; // number of samples in each cycle of audio sample until last zero
@@ -473,10 +477,12 @@ private:
     Array<MetaSpline> metaSplineArray;
     Array<CycleSpline> keyCycleArray;
     Array<CycleSpline> allCycleArray;
+    Array<CycleSpline> deltaCycleArray;
     Array<float> maxSampleIndices;  // per cycle, sample index for max abs value
     Array<float> maxSampleValues;   // per cycle, abs max value at sample
     int lastSample;             // index of last sample = (int) lastZero
     int numCycles;              // number of cycles computed was: (int) (lengthInSeconds * freqGuess)
+    int numCycleZeros;
                                 // now replaced by samplesPerCycle.size() = actual number of cycles
     int startIndex = 0;         // index of first cycle to graph
     int endIndex = 0;           // index of last cycle to graph
@@ -493,7 +499,7 @@ private:
     bool fibonacciCycleInterp = false;
     bool noCycleInterp = false;
     bool otherCycleInterp = false;
-    bool regularCycleInterp = true;
+    bool regularCycleInterp = false;
     bool endsOnlyCycleInterp = false;
     bool normalizeCycleLength = false;
     bool addSubharmonic = false;
@@ -506,8 +512,10 @@ private:
     bool modelWithoutDelta = false;
     bool modelWithCA = false;
     bool modelWithSmall = false;
+    bool preserveDelta = true;   // this uses y0 and y1 from Delta model for all cycles
+    bool writeShortFade = false;
     float currentSampleRate = 0.0, currentAngle = 0.0, angleDelta = 0.0;
-    double currentFrequency = 283, targetFrequency = 283;
+    double currentFrequency = 220, targetFrequency = 220;
     // set some other arrays and variables to be used in computing cycleToGraph in getNextAudioBlock
     juce::Array<float> controlCoeffs;   // need to set this to size 4*n where n is max number of bcoeffs
     juce::Array<float> knotVals;        // this only depends on k and d
