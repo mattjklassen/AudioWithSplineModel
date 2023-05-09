@@ -44,6 +44,8 @@
 
 *******************************************************************************/
 
+// Undo the last commit (locally):
+// git reset --soft HEAD~1
 
 #pragma once
 

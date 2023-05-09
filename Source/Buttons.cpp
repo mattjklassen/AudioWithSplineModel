@@ -30,8 +30,7 @@ void MainContentComponent::openButtonClicked()
             cycleZeros.clear();
             allZeros.clear();
             samplesPerCycle.clear();
-//            computeZeros() is turned off here!
-//            computeZeros();
+            computeZeros();
             findMaxValuesPerCycle(maxSampleIndices, maxSampleValues, cycleZeros, floatBuffer);
             graphView.setDataForGraph(floatBuffer, audioDataLoaded, numSamples, magnify,
                                       leftEndPoint, rightEndPoint, sampleCount, sampleRate, kVal);
