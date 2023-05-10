@@ -404,8 +404,8 @@ void MainContentComponent::loadBcoeffs(String filename, int d, int k, int numKey
     if (input.openedOk())
     {
         int size = (int) input.getTotalLength();
-        // new comment
-        char data[size];
+//        char data[size];
+        char* data = new char[size];
         input.read(data, size);
         float *bcoeffs = reinterpret_cast<float*>(data);
         float max = 0;
@@ -421,6 +421,7 @@ void MainContentComponent::loadBcoeffs(String filename, int d, int k, int numKey
                 Bcoeffs.set(i*n+p, val);
             }
         }
+        delete[] data;
 //        DBG("max bcoeff: " << max);
     }
 }
